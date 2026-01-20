@@ -11,7 +11,7 @@ init: git-sshd/ssh_host_rsa_key git-sshd/ssh_host_ed25519_key
 		git -C $$repo config format.subjectPrefix "PATCH $$repo"
 	done
 
-.PRONY: pull
+.PHONY: pull
 .ONESHELL:
 pull:
 	@
