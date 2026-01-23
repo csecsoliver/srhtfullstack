@@ -58,6 +58,8 @@ services:
       - "./hub.sr.ht/schema.sql:/data/hub.sr.ht.sql"
       - "./lists.sr.ht/schema.sql:/data/lists.sr.ht.sql"
       - "./builds.sr.ht/schema.sql:/data/builds.sr.ht.sql"
+    ports:
+      - "127.0.0.1:5432:5432"
   minio:
     image: "quay.io/minio/minio"
     environment:

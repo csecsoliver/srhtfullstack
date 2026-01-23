@@ -33,6 +33,7 @@ The following services are included:
 - hub.sr.ht: web frontend at http://127.0.0.1:5014
 - minio: web frontend at http://127.0.0.1:9001,
   username: minio, password: jIPk1RZ8gdhQwnUL4YtrOAXsFpHvb4Mw8hEwfLq
+- postgres: listening on 127.0.0.1:5432 (user/password: postgres/postgres)
 
 By default, all services are started. To only start a subset, specify services
 of interest as arguments, for instance:
