@@ -19,6 +19,15 @@ pull:
 		git -C $$repo pull
 	done
 
+.PRONY: status
+.ONESHELL:
+status:
+	@
+	for repo in ${repos}; do
+		echo === $$repo ===
+		git -C $$repo status -s
+	done
+
 git-sshd/ssh_host_rsa_key:
 	ssh-keygen -f git-sshd/ssh_host_rsa_key -N '' -C 'git-ssh' -t rsa -b 4096 && chmod 600 git-sshd/ssh_host_rsa_key
 git-sshd/ssh_host_ed25519_key:
