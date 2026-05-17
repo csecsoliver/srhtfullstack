@@ -1,0 +1,4 @@
+#!/bin/sh
+export release="15.0-RELEASE"
+export repo="FreeBSD-ports"
+exec ../genimg "$@"

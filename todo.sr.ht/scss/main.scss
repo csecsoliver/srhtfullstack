@@ -1,0 +1,287 @@
+@import "base";
+
+.ellipsis {
+  overflow-x: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+select.form-control {
+  padding: 0.1rem;
+  display: inline-block;
+  width: auto;
+  height: 1.7rem !important;
+  position: relative;
+  top: 1px;
+}
+
+.tracker-list h4 {
+  margin-bottom: 0;
+  border-bottom: none;
+
+  &:not(:first-child) {
+    margin-top: 1rem;
+  }
+}
+
+.ticket-list {
+  $border: #ced4da;
+  $border-dark: $gray-600;
+  border-right: 1px solid $border;
+  border-bottom: 1px solid $border;
+  margin-bottom: 1rem;
+
+  @media(prefers-color-scheme: dark) {
+    border-color: $border-dark;
+  }
+
+  display: grid;
+  // id title updated submitter comments
+  grid-template-columns: auto 1fr auto auto auto;
+
+  .title > a {
+    color: $gray-900;
+    @media(prefers-color-scheme: dark) {
+      color: $gray-300;
+    }
+  }
+
+  @include media-breakpoint-down(xs) {
+    display: block;
+    border: none;
+
+    & > div {
+      display: block;
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+
+      &:nth-child(5n+4) {
+        margin-bottom: 1rem;
+      }
+    }
+
+    .id {
+      text-align: inherit !important;
+      font-size: 2rem;
+    }
+
+    .updated {
+      color: $gray-600;
+      display: inline;
+    }
+
+    .updated:before {
+      content: "Updated ";
+    }
+
+    .updated:after {
+      content: " by ";
+    }
+
+    .submitter {
+      display: inline;
+    }
+
+    .comments {
+      text-align: left !important;
+
+      & > .commentlabel {
+        display: inline !important;
+      }
+    }
+  }
+
+  & > div {
+    padding: 0.1rem 0.5rem;
+    background: transparent;
+    border-left: 1px solid $border;
+    border-top: 1px solid $border;
+    @media(prefers-color-scheme: dark) {
+      border-color: $border-dark;
+    }
+
+    &.id {
+      text-align: right;
+    }
+
+    &.comments {
+      text-align: center;
+      & > .commentlabel {
+        display: none;
+      }
+    }
+
+    @for $i from 1 through 5 {
+      &:nth-child(5n+#{$i}) {
+        grid-column-start: $i;
+      }
+
+      // Striped rows
+      &:nth-child(10n+#{$i}) {
+        background: rgba(0,0,0,.05);
+      }
+    }
+  }
+}
+
+.label-list > .row {
+  margin-bottom: .2rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.label {
+  white-space: nowrap;
+  margin-bottom: .3rem;
+  display: inline-block;
+  border: 1px solid black;
+  padding: .1rem .5rem;
+
+  &.small {
+    font-size: .7rem;
+    padding: 0 .3rem;
+  }
+
+  form {
+    display: inline-block;
+    margin: 0;
+  }
+
+  a, .btn {
+    color: inherit;
+  }
+
+  .btn {
+    margin-left: 0.2rem;
+  }
+}
+
+.event .label a {
+  color: inherit;
+}
+
+.assign {
+  &[open] {
+    background: $gray-300;
+    @media(prefers-color-scheme: dark) {
+      background: $gray-800;
+    }
+    padding: 0.5rem;
+  }
+}
+
+.ticket-title {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.ticket-events {
+  h4 {
+    font-size: 1rem;
+    border: none;
+  }
+
+  .label {
+    position: relative;
+    top: -0.1rem;
+  }
+
+  .event {
+    > blockquote {
+      margin-top: 0.5rem;
+      border: none;
+    }
+    &.preview {
+      border: 1px dashed black;
+      .preview-tag {
+        float: right;
+        font-size: 0.8rem;
+        font-style: italic;
+      }
+    }
+  }
+}
+
+#description-field {
+  overflow-x: auto;
+
+  img {
+    max-width: 100%;
+  }
+}
+
+.dashboard {
+  .event img {
+    max-width: 100%;
+    max-height: 250px;
+  }
+}
+
+.ticket-preview {
+  border: 1px dashed black;
+  padding: 0.5rem;
+  margin: 1rem 0;
+
+  .preview-tag {
+    float: right;
+    font-size: 0.8rem;
+    font-style: italic;
+  }
+}
+
+.event-header {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+
+  .event & {
+    margin-bottom: 0.25rem;
+  }
+
+  & > *:not(:last-child) {
+    margin-right: 0.25rem;
+  }
+
+  & > span {
+    min-width: 0;
+    overflow-x: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-grow: 1;
+  }
+}
+
+.prefs {
+  margin: -0.5rem 0 0.5rem 0;
+  padding: 0 1rem;
+
+  summary {
+    background: $gray-300;
+
+    @media(prefers-color-scheme: dark) {
+      background: $gray-800;
+    }
+
+    padding: 0 1rem;
+    margin: 0 -1rem;
+  }
+
+  &[open] {
+    border-left: 4px solid $gray-300;
+    @media(prefers-color-scheme: dark) {
+      border-color: $gray-800;
+    }
+
+    summary {
+      margin: 0 -1rem 0 calc(-1rem - 4px);
+    }
+  }
+
+  .form-check {
+    padding-left: 0;
+  }
+}

@@ -1,0 +1,34 @@
+{% extends "meta.html" %}
+
+{% block title %}
+<title>Subscription cancelled - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <form class="col-md-8 offset-md-2" method="POST">
+    {{csrf_token()}}
+    <h3>Cancellation confirmed</h3>
+    {% if user.payment_status == PaymentStatus.UNPAID %}
+    <p>
+      Your cancellation was processed succesfully. Your account will no longer
+      receive paid services.
+    </p>
+    {% elif user.payment_status == PaymentStatus.CURRENT %}
+    <p>
+      Your cancellation is pending. All future automatic payments have been
+      cancelled and you may continue to use paid services until the end of your
+      current payment term on {{user.payment_due.strftime("%B %d, %Y")}}.
+    </p>
+    {% endif %}
+    <p>
+      Thank you for supporting SourceHut!
+    </p>
+
+    <a
+      href="{{url_for("profile.profile_GET")}}"
+      class="btn btn-info"
+    >Continue {{icon('caret-right')}}</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "layout-full.html" %}
+{% block title %}
+<title>Featured projects on {{cfg("sr.ht", "site-name")}}</title>
+{% endblock %}
+{% block body %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-lg-8">
+      <h3>Featured projects</h3>
+      <div class="event-list">
+        {% for feature in features %}
+        {% set project = feature.project %}
+        <div class="event">
+          <h4>
+            <a href="{{url_for("users.summary_GET",
+              username=project.owner.username)}}"
+            >{{project.owner.canonical_name}}</a>/<a
+              href="{{url_for("projects.summary_GET",
+                owner=project.owner.canonical_name,
+                project_name=project.name)}}"
+            >{{project.name}}</a>
+          </h4>
+          <blockquote style="margin-top: 0.5rem">
+            {{feature.summary | md}}
+          </blockquote>
+          {% if project.tags %}
+          <div class="tags">
+          {% for tag in project.tags %}
+            <a href="{{url_for("public.project_index", search="#"+tag)}}"
+               class="tag" rel="nofollow">#{{tag}}</a>
+          {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+        {{pagination()}}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+mutation UpdateProfile($input: UserInput!) {
+  updateUser(input: $input) { id, email }
+}
+
+mutation ConfirmEmailChange($token: String!) {
+  user: confirmEmailChange(token: $token) {
+    id
+  }
+}
+
+mutation DeleteUser($reserve: Boolean!) {
+  deleteUser(reserve: $reserve)
+}

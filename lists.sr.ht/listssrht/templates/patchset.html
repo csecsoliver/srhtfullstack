@@ -1,0 +1,272 @@
+{% extends "list.html" %}
+{% block title %}
+<title>
+  {{ patchset.subject }} &mdash; {{ cfg("sr.ht", "site-name") }} lists
+</title>
+{% endblock %}
+{% macro msg_header(msg, showfrom=True, feedback_block=None) %}
+<div class="message-header">
+  {% if showfrom %}
+  <div class="from">
+    {% set from_hdr = msg.parsed()['From'] %}
+    {% set from = parseaddr(from_hdr) %}
+    {% if msg.sender != None %}
+    <a href="/{{ msg.sender.canonical_name }}">{{from[0]}}</a>
+    {% else %}
+    {{from[0]}}
+    {% endif %}
+    <a href="{{reply_to(msg)}}">&lt;{{ from[1] }}&gt;</a>
+  </div>
+  {% endif %}
+  <div class="date">
+    {% if feedback_block %}
+    <a href="#feedback-{{feedback_block.key}}" class="text-muted">
+    {% else %}
+    <a
+      id="{{ msg.message_id }}"
+      href="#{{ msg.message_id }}"
+      class="text-muted"
+    >
+    {% endif %}
+      {{ msg.created | date }}
+    </a>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro display_msg(msg, standalone=True, feedback_block=None) %}
+{{ msg_header(msg, feedback_block=feedback_block) }}
+
+{% set feedback = feedback.get(msg.id) %}
+
+<pre class="message-body">
+  {%- for line in (feedback_block.body if feedback_block else format_body(msg, nowrap=True)).splitlines() -%}
+  {{- line + "\n" -}}
+  {%- set line_offset = feedback_block.source_region[0] if feedback_block else 0 -%}
+  {%- set line_index = loop.index + line_offset - 1 -%}
+  {%- if feedback and line_index in feedback.feedback_by_line -%}
+</pre>
+  {% for sub in feedback.feedback_by_line[line_index] %}
+  {% set child = sub.source_msg %}
+  <blockquote class="feedback" id="feedback-{{sub.key}}">
+    {{ display_msg(child, standalone=False, feedback_block=sub) }}
+    {# Generate link to next message fragment #}
+    {% set next = nextmsg(feedback, child, line_index) %}
+    {% if next %}
+    <div style="text-align: right; margin-top: -1rem; margin-bottom: 1rem">
+      <a href="#feedback-{{next[1].key}}">
+        Next {{icon("caret-right")}}
+      </a>
+    </div>
+    {% endif %}
+  </blockquote>
+  {% endfor %}
+<pre class="message-body">
+  {%- endif -%}
+{%- endfor -%}
+</pre>
+{% if any(feedback.standalone_feedback) and standalone %}
+{% for feedback in feedback.standalone_feedback %}
+{% if feedback.source_msg not in patches %}
+<blockquote>
+  {% set msg = feedback.source_msg %}
+  {{ msg_header(msg) }}
+  {{format_body(feedback.source_msg)}}
+</blockquote>
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      {% if user_message %}
+      <div class="alert alert-success">
+        {{user_message}}
+      </div>
+      {% endif %}
+      {% if patchset.cover_letter %}
+      {% set msg = patchset.cover_letter %}
+      {% else %}
+      {% set msg = patchset.patches[0] %}
+      {% endif %}
+      <h3>
+        {% if patchset.prefix %}
+        {{patchset.prefix}}:
+        {% endif %}
+        {{patchset.subject}}
+        <small>v{{patchset.version}}</small>
+        <span class="pull-right {{status_to_color[patchset.status]}}">
+          {{patchset.status.value.replace("_", " ").upper()}}
+        </span>
+      </h3>
+      {{ msg_header(msg) }}
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-8">
+      {% if patchset.cover_letter %}
+      <pre class="message-body">{{ format_body(msg) }}</pre>
+      {% else %}
+      <pre class="message-body">{{ gen_cover_letter(patches) }}</pre>
+      {% endif %}
+
+      {% if any(tools) %}
+      <div class="event-list tool-status">
+        {% for tool in tools %}
+        <div class="event">
+          {{icon(tool_icon_to_icon[tool.icon],
+            cls=tool_icon_to_class[tool.icon])}}
+          {{tool_details(tool.details)}}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if patchset.superseded_by_id or patchset.supersedes_id %}
+      <div class="alert alert-info">
+        <b>Notice</b>: This patchset
+        {% if patchset.superseded_by_id %}
+        has been superseded by a <a href="{{url_for('patches.patchset',
+            owner_name=owner.canonical_name, list_name=ml.name,
+            patchset_id=patchset.superseded_by_id)}}">newer revision</a>{% if patchset.supersedes_id %} and{% else %}.{% endif %}
+        {% endif %}
+        {% if patchset.supersedes_id %}
+        supersedes an <a href="{{url_for('patches.patchset',
+            owner_name=owner.canonical_name, list_name=ml.name,
+            patchset_id=patchset.supersedes_id)}}">older revision</a>.
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% for m in messages %}
+      {% if m.id in feedback %}
+      {% set fb = feedback[m.id] %}
+
+      {% for feedback in fb.standalone_feedback %}
+      {% set msg = feedback.source_msg %}
+        {% if not msg.is_patch %}
+          {{ display_msg(msg, standalone=False, feedback_block=feedback) }}
+          {# Generate link to next message fragment #}
+          {% set next = nextmsg(fb, msg) %}
+          {% if next %}
+          <div style="text-align: right; margin-top: -1rem; margin-bottom: 1rem">
+            <a href="#feedback-{{next[1].key}}">
+              Next {{icon("caret-right")}}
+            </a>
+          </div>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+
+      {% endif %}
+      {% endfor %}
+    </div>
+    <div class="col-md-4">
+      <div class="event-list">
+        <div class="event">
+          <a class="btn btn-primary btn-block" href="{{ url_for('patches.mbox',
+            owner_name=owner.canonical_name, list_name=ml.name,
+            patchset_id=patchset.id) }}"
+          >Export patchset (mbox) {{icon('caret-right')}}</a>
+          <details style="margin-top: 0.5rem">
+            <summary>How do I use this?</summary>
+            <p>
+              Copy &amp; paste the following snippet into your terminal to
+              import this patchset into git:
+            </p>
+            <pre>curl -s {{root}}{{ url_for('patches.mbox',
+              owner_name=owner.canonical_name, list_name=ml.name,
+              patchset_id=patchset.id) }} | git am -3</pre>
+            <a
+              href="https://git-send-email.io/"
+              target="_blank"
+              class="btn btn-link btn-block"
+            >Learn more about email &amp; git {{icon('caret-right')}}</a>
+          </details>
+        </div>
+        <div class="event">
+          <a class="btn btn-primary btn-block"
+            href="{{reply_to(thread.replies[-1] if thread.replies else thread)}}"
+          >Reply to thread {{icon('caret-right')}}</a>
+          <a class="btn btn-default btn-block" href="{{ url_for('archives.thread',
+            owner_name=owner.canonical_name, list_name=ml.name,
+            message_id=thread.message_id) }}"
+          >View this thread in the archives {{icon('caret-right')}}</a>
+          <form
+            style="margin-top: 0.5rem"
+            action="{{ url_for('archives.forward',
+              owner_name=owner.canonical_name, list_name=ml.name,
+              message_id=thread.message_id) }}?patch={{patchset.id}}"
+            method="POST"
+          >
+            {{csrf_token()}}
+            <button
+              class="btn btn-default btn-block"
+            >Forward this thread to me {{icon('caret-right')}}</button>
+          </form>
+        </div>
+        {% set is_moderator = ListAccess.moderate in access %}
+        {% set is_sender = current_user and current_user.canonical_name == msg.sender.canonical_name %}
+        {% set sender_may_update = patchset.status.value not in MODERATOR_ONLY_STATUS %}
+        {% if is_moderator or (is_sender and sender_may_update) %}
+        <form
+          class="event"
+          method="POST"
+          action="{{url_for('patches.patchset_update',
+            owner_name=owner.canonical_name, list_name=ml.name,
+            patchset_id=patchset.id)}}"
+        >
+          {{csrf_token()}}
+          <div class="form-group">
+            <select
+              name="status"
+              id="status"
+              class="form-control"
+            >
+              {% for opt in PatchsetStatus %}
+                {% if opt.value != "unknown" %}
+                {% if is_moderator or opt.value not in MODERATOR_ONLY_STATUS %}
+                <option
+                  value="{{opt.value}}"
+                  {% if patchset.status == opt %}
+                  selected
+                  {% endif %}
+                >{{opt.value.replace("_", " ").upper()}}</option>
+                {% endif %}
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          <button
+            type="submit"
+            class="btn btn-success pull-right"
+          >Update {{icon('caret-right')}}</button>
+          <div class="clearfix"></div>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="row" style="margin-top: 5rem">
+    <div class="col-md-12">
+      {% for msg in patches %}
+      <h3>
+        {{msg.subject}}
+        <a href="{{ url_for("archives.raw",
+                  owner_name=ml.owner.canonical_name,
+                  list_name=ml.name,
+                  message_id=msg.message_id
+        ) }}" class="btn btn-link pull-right">
+          Export this patch {{icon('caret-right')}}
+        </a>
+      </h3>
+      {{ display_msg(msg) }}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

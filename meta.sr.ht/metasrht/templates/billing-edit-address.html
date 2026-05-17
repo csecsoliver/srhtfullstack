@@ -1,0 +1,38 @@
+{% extends "meta.html" %}
+
+{% block title %}
+<title>Update billing address - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    <h3>Update billing address</h3>
+    <p>
+      Please enter your billing details. This information is used to calculate
+      applicable taxes and will be included on your invoice.
+    </p>
+  </div>
+</div>
+<form method="POST">
+  {{csrf_token()}}
+  <div class="row">
+    <div class="offset-md-2 col-md-8">
+      {% include "partials/edit-address.html" %}
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="offset-md-7 col-md-3 d-flex justify-content-between">
+      <a
+        href="{{url_for("billing.billing_GET")}}"
+        class="btn btn-default"
+      >Cancel {{icon('caret-right')}}</a>
+      <button type="submit" class="btn btn-primary">
+        Update address
+        {{icon('caret-right')}}
+      </button>
+    </div>
+  </div>
+</form>
+{% endblock %}

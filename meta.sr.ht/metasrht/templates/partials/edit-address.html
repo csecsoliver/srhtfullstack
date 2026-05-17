@@ -1,0 +1,147 @@
+<div class="row">
+  <div class="col-md-12">
+    <div class="form-group">
+      <label for="country" class="d-block">
+        Country <span class="required">*</span>
+        <small class="pull-right"><span class="required">*</span> Required</small>
+      </label>
+
+      <select
+        class="form-control {{valid.cls("country")}}"
+        id="country"
+        name="country"
+        required
+      >
+        <option></option>
+        {% for c in countries %}
+        <option
+          value="{{c.alpha2}}"
+          {% if address.country == c %}
+          selected
+          {% endif %}
+        >
+          {% if c.alpha2 == "TW" %}
+          Taiwan
+          {% else %}
+          {{c.name}}
+          {% endif %}
+        </option>
+        {% endfor %}
+      </select>
+      {{valid.summary("country")}}
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="form-group">
+      <label for="full_name">Full name</label>
+      <input
+        type="text"
+        class="form-control {{valid.cls("full_name")}}"
+        name="full_name"
+        id="full_name"
+        value="{{address.full_name or ""}}" />
+      {{valid.summary("fullName")}}
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="form-group">
+      <label for="business_name">Business name</label>
+      <input
+        type="text"
+        class="form-control {{valid.cls("business_name")}}"
+        name="business_name"
+        id="business_name" 
+        value="{{address.business_name or ""}}" />
+      {{valid.summary("businessName")}}
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="form-group">
+      <label for="address1">Address</label>
+      <div class="row">
+        <div class="col-md-8">
+          <input
+            type="text"
+            class="form-control {{valid.cls("address1")}}"
+            name="address1"
+            id="address1"
+            placeholder="123 Main St."
+            value="{{address.address_1 or ""}}" />
+        </div>
+        <div class="col-md-4">
+          <input
+            type="text"
+            class="form-control {{valid.cls("address2")}}"
+            name="address2"
+            id="address2"
+            placeholder="Apt. 1337"
+            value="{{address.address_2 or ""}}" />
+        </div>
+      </div>
+      {{valid.summary("address1")}}
+      {{valid.summary("address2")}}
+    </div>
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-12">
+    <div class="form-group">
+      <label for="city">City</label>
+      <input
+        type="text"
+        class="form-control {{valid.cls("city")}}"
+        name="city"
+        id="city"
+        value="{{address.city or ""}}" />
+      {{valid.summary("city")}}
+    </div>
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-6">
+    <div class="form-group">
+      <label for="region">State/Region</label>
+      <input
+        type="text"
+        class="form-control {{valid.cls("region")}}"
+        name="region"
+        id="region"
+        value="{{address.region or ""}}" />
+      {{valid.summary("region")}}
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="form-group">
+      <label for="postcode">Postcode</label>
+      <input
+        type="text"
+        class="form-control {{valid.cls("postcode")}}"
+        name="postcode"
+        id="postcode"
+        value="{{address.postcode or ""}}" />
+      {{valid.summary("postcode")}}
+    </div>
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-12">
+    <div class="form-group">
+      <label for="vat">VAT/Tax ID</label>
+      <input
+        type="text"
+        class="form-control {{valid.cls("vat")}}"
+        name="vat"
+        id="vat"
+        value="{{address.vat or ""}}" />
+      {{valid.summary("vat")}}
+    </div>
+  </div>
+</div>

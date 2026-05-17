@@ -1,0 +1,51 @@
+image: alpine/latest
+packages:
+  - e2fsprogs
+  - qemu-img
+  - qemu-system-x86_64
+  - rsync
+  - sfdisk
+  - "!usr-merge-nag"
+sources:
+  - https://git.sr.ht/~sircmpwn/builds.sr.ht
+environment:
+  arch: x86_64
+  release: edge
+  slaves:
+    - deploy@fra01.builds.sr.ht
+    - deploy@fra02.builds.sr.ht
+    - deploy@rsync.builds.sr.ht
+secrets:
+  - fa00a8d3-7b63-42d5-8060-3bb31c3e3018
+triggers:
+  - action: email
+    condition: failure
+    to: ~sircmpwn/sr.ht-image-failures@lists.sr.ht
+tasks:
+  - genimg: |
+      cd builds.sr.ht/images/alpine/$release
+      sudo ./genimg $arch
+  - kvm: |
+      if grep -i amd /proc/cpuinfo
+      then
+          sudo modprobe kvm_amd
+      else
+          sudo modprobe kvm_intel
+      fi
+      sleep 1
+      sudo chown build:build /dev/kvm
+  - sanity-check: |
+      cd builds.sr.ht
+      MEMORY=1024 ./images/control alpine/$release sanity-check
+  - deploy: |
+      cd builds.sr.ht/images/alpine/$release
+      echo "StrictHostKeyChecking=no" >> ~/.ssh/config
+      for server in "${slaves[@]}"
+      do
+        ssh $server mkdir -p /var/lib/images/alpine/$release/$arch
+        rsync -rzP $arch/root.img.qcow2 \
+          ${server}:/var/lib/images/alpine/$release/$arch/new_root.img.qcow2
+        ssh $server \
+          mv /var/lib/images/alpine/$release/$arch/new_root.img.qcow2 \
+             /var/lib/images/alpine/$release/$arch/root.img.qcow2
+      done

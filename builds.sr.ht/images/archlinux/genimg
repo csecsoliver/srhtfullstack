@@ -1,0 +1,153 @@
+#!/bin/sh -eux
+root=root
+arch=x86_64
+
+cleanup() {
+    # The order here is important if you don't want to hose your mounts
+    umount -Rf "$root"/boot || true
+    umount -Rf "$root" || true
+    qemu-nbd --disconnect /dev/nbd0 || true
+}
+
+mkdir -p "$arch"
+
+qemu-img create -f qcow2 $arch/root.img.qcow2 24G
+modprobe nbd
+qemu-nbd --connect=/dev/nbd0 $arch/root.img.qcow2
+for i in $(seq 1 5); do
+	sleep 0.$i
+	partprobe /dev/nbd0 && break
+done
+trap cleanup EXIT
+
+dd if=/usr/lib/syslinux/bios/mbr.bin of=/dev/nbd0 bs=1 count=440
+
+sfdisk --no-reread /dev/nbd0 << EOF
+1M,100M,L,*
+,,L
+EOF
+
+mkdir -p "$root"
+mkfs.ext4 /dev/nbd0p1
+mkfs.ext4 /dev/nbd0p2
+mount /dev/nbd0p2 "$root"
+mkdir -p "$root"/boot
+mount /dev/nbd0p1 "$root"/boot
+
+pacstrap -C pacstrap.conf -G root base base-devel git mercurial openssh mkinitcpio linux syslinux pacutils
+
+run_root() {
+    local cmd="$@"
+    # Run in a PID namespace to tear down processes remaining in the chroot on
+    # exit (e.g. gpg-agent)
+    unshare --fork --pid chroot $root /bin/bash -c "$cmd"
+}
+
+run_normal() {
+    local cmd="$@"
+    unshare --fork --pid chroot $root sudo -u build -g build \
+        /bin/bash -c "cd /home/build && $cmd"
+}
+
+echo 'nameserver 8.8.8.8' >$root/etc/resolv.conf
+echo 'nameserver 9.9.9.9' >>$root/etc/resolv.conf
+echo 'nameserver 1.1.1.1' >>$root/etc/resolv.conf
+echo '127.0.0.1 localhost.localdomain localhost' > $root/etc/hosts
+echo '::1 localhost.localdomain localhost' >> $root/etc/hosts
+
+mount --bind /proc $root/proc
+mount --bind /sys $root/sys
+mount --bind /dev $root/dev
+mount --bind /dev/pts $root/dev/pts
+mount --bind /dev/shm $root/dev/shm
+mount --bind /run $root/run
+
+cp mkinitcpio.conf $root/etc
+cp pacman.conf $root/etc
+
+reflector --protocol https --latest 30 --sort rate --save $root/etc/pacman.d/mirrorlist
+
+run_root pacman-key --init
+run_root pacman-key --populate archlinux
+run_root pacman -Sy
+
+sed -i 's/#en_US.UTF-8/en_US.UTF-8/' $root/etc/locale.gen
+run_root locale-gen
+
+cat >"$root"/etc/systemd/network/25-ens3.network <<EOF
+[Match]
+Name=ens3
+
+[Network]
+Address=10.0.2.15/24
+Gateway=10.0.2.2
+EOF
+
+run_root systemctl enable systemd-networkd.service
+run_root systemctl enable systemd-timesyncd.service
+
+# Triggers the hook that generates linux.preset and runs mkinitcpio, too
+run_root pacman -S --noconfirm linux
+
+# Make sure the hook never runs again, it's result will never be used and it
+# just causes delays.
+mkdir -p $root/etc/pacman.d/hooks/
+ln -s /dev/null $root/etc/pacman.d/hooks/90-mkinitcpio-install.hook
+
+run_root groupadd sudo
+run_root useradd -mG sudo,kvm build
+run_root passwd -d build
+echo '%sudo ALL=(ALL) NOPASSWD: ALL' >> $root/etc/sudoers
+echo 'source /etc/profile.d/perlbin.sh' > $root/home/build/.bashrc
+echo 'export EDITOR=true' > $root/home/build/.bashrc
+
+sed -e 's/#PermitEmptyPasswords no/PermitEmptyPasswords yes/' -i $root/etc/ssh/sshd_config
+run_root systemctl enable sshd
+
+cat >> "$root"/etc/fstab << EOF
+/dev/vda1 /boot ext4 rw,relatime,data=ordered 0 0
+/dev/vda2 / ext4 rw,relatime,data=ordered 0 0
+EOF
+
+mkdir -p "$root"/etc/docker
+cat > "$root"/etc/docker/daemon.json << EOF
+{
+	"bip": "172.18.0.1/16"
+}
+EOF
+run_root groupadd -r docker
+run_root gpasswd -a build docker
+
+extlinux -i "$root"/boot
+
+cat > "$root"/boot/extlinux.conf <<- EOF
+default archlinux
+label archlinux
+linux vmlinuz-linux
+initrd initramfs-linux.img
+append root=/dev/vda2 rw quiet
+EOF
+
+echo "makeopts=(--skippgpcheck)" >> $root/etc/makepkg.conf
+
+run_normal git clone https://aur.archlinux.org/yay.git
+run_normal 'cd yay && env GOCACHE=/tmp/cache makepkg -si --noconfirm --skippgpcheck'
+run_normal rm -rf /tmp/cache yay yay.tar.gz
+
+cat > "$root"/home/build/.gitconfig << EOF
+[user]
+  name = builds.sr.ht
+  email = builds@sr.ht
+EOF
+run_root chown build:build /home/build/.gitconfig
+# Nudge GnuPG to _not_ use the new keyboxd, it does not play nice with fakeroot
+# and hence breaks makepkg (the package signing part)
+mkdir "$root"/etc/gnupg
+cat > "$root"/etc/gnupg/common.conf << EOF
+[ignore]
+use-keyboxd
+[-ignore]
+EOF
+
+run_root pacman --noconfirm -Rs go
+paccache -rk0 -c "$root/var/cache/pacman/pkg"

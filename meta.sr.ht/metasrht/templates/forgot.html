@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>Reset password - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    <h3>
+      Reset password
+    </h3>
+    {% if done %}
+    <p>
+      An email has been sent to your account with a link to reset your password.
+    </p>
+    {% elif allow_password_reset() %}
+    <form method="POST" action="/forgot">
+      {{csrf_token()}}
+      <div class="form-group">
+        <label for="username">Email address</label>
+        <input
+           type="text"
+           name="email"
+           id="email"
+           class="form-control {{valid.cls("email")}}"
+           value="{{email or ""}}" />
+        {{valid.summary("email")}}
+      </div>
+      {{valid.summary()}}
+      <button class="btn btn-primary pull-right" type="submit">
+        Continue {{icon('caret-right')}}
+      </button>
+    </form>
+    {% else %}
+    <p>Password reset is disabled because sr.ht authentication is managed by a
+    different service. Please contact the system administrator for further
+    information on how to reset your password.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

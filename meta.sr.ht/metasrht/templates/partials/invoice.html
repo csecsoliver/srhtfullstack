@@ -1,0 +1,27 @@
+{% macro render(invoice, currencies) %}
+<form
+  class="event invoice"
+  action="{{url_for("billing.invoice_POST", invoice_id=invoice.id)}}"
+  method="POST"
+>
+  {{csrf_token()}}
+  <h4>Invoice #{{invoice.invoice_no}}</h4>
+  <dl class="row">
+    <dt class="col-md-3">Issued</dt>
+    <dd class="col-md-5">{{invoice.issued | date}}</dd>
+
+    <dt class="col-md-2">Total</dt>
+    <dd class="col-md-2">{{currencies[invoice.currency]}}{{"{:.02f}".format(invoice.total / 100)}}</dd>
+
+    <dt class="col-md-3">Valid until</dt>
+    <dd class="col-md-9">{{invoice.service_end | date}}</dd>
+
+    <dd class="offset-md-3 col-md-9">
+      <button
+        class="btn btn-success btn-block"
+        type="submit"
+      >{{icon("file-invoice", cls="sm")}} Download PDF</button>
+    </dd>
+  </dl>
+</form>
+{% endmacro %}

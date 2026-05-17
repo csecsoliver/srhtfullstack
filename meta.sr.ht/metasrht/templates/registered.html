@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>Confirm your {{cfg("sr.ht", "site-name")}} account</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    <h3>
+      Registration successful
+    </h3>
+    <p>
+      You will receive an email shortly with a link to complete your account
+      registration. Contact support at
+      <a href="mailto:{{cfg("sr.ht", "owner-email")}}">
+        {{ "{} <{}>".format(cfg("sr.ht", "owner-name"), cfg("sr.ht", "owner-email")) }}</a> if you need help.
+    </p>
+  </div>
+</div>
+{% endblock %}

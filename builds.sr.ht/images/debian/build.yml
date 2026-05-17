@@ -1,0 +1,92 @@
+image: debian/unstable
+packages:
+  - debootstrap
+  - e2fsprogs
+  - qemu-user
+  - qemu-user-binfmt
+  - qemu-utils
+  - binfmt-support
+  - rsync
+  - syslinux-common
+sources:
+  - https://git.sr.ht/~sircmpwn/builds.sr.ht
+environment:
+  arch: amd64
+  release: trixie
+  slaves:
+    - deploy@fra01.builds.sr.ht
+    - deploy@fra02.builds.sr.ht
+    - deploy@rsync.builds.sr.ht
+secrets:
+  - fa00a8d3-7b63-42d5-8060-3bb31c3e3018
+triggers:
+  - action: email
+    condition: failure
+    to: ~sircmpwn/sr.ht-image-failures@lists.sr.ht
+tasks:
+  - genimg: |
+      cd builds.sr.ht
+      cd images/debian/$release
+      case "$arch" in
+          arm64)
+              qpkg=arm
+              ;;
+          amd64)
+              qpkg=x86
+              ;;
+          ppc64el)
+              qpkg=ppc
+              ;;
+      esac
+      sudo apt-get install -y qemu-system-"$qpkg"
+      sudo ./genimg $arch
+  - sanity-check: |
+      cd builds.sr.ht
+      # Nested KVM is often broken on Debian, run sanity check on softmmu
+      #sudo chown build:build /dev/kvm
+      sudo rm -f /dev/kvm
+      MEMORY=1024 ./images/control debian/$release sanity-check "$arch"
+  - deploy: |
+      cd builds.sr.ht/images/debian/$release
+      echo "StrictHostKeyChecking=no" >> ~/.ssh/config
+      for server in "${slaves[@]}"
+      do
+        ssh $server mkdir -p /var/lib/images/debian/$release/$arch
+        rsync -rzP $arch/root.img.qcow2 \
+          ${server}:/var/lib/images/debian/$release/$arch/new_root.img.qcow2
+        case "$arch" in
+            arm64)
+                rsync -rzP $arch/vmlinuz \
+                  ${server}:/var/lib/images/debian/$release/$arch/vmlinuz.new
+                rsync -rzP $arch/initrd.img \
+                  ${server}:/var/lib/images/debian/$release/$arch/initrd.img.new
+                ;;
+            ppc*)
+                rsync -rzP $arch/vmlinux \
+                  ${server}:/var/lib/images/debian/$release/$arch/vmlinux.new
+                rsync -rzP $arch/initrd.img \
+                  ${server}:/var/lib/images/debian/$release/$arch/initrd.img.new
+                ;;
+        esac
+        ssh $server \
+          mv /var/lib/images/debian/$release/$arch/new_root.img.qcow2 \
+             /var/lib/images/debian/$release/$arch/root.img.qcow2
+        case "$arch" in
+            arm64)
+                ssh $server \
+                  mv /var/lib/images/debian/$release/$arch/vmlinuz.new \
+                     /var/lib/images/debian/$release/$arch/vmlinuz
+                ssh $server \
+                  mv /var/lib/images/debian/$release/$arch/initrd.img.new \
+                     /var/lib/images/debian/$release/$arch/initrd.img
+                ;;
+            ppc*)
+                ssh $server \
+                  mv /var/lib/images/debian/$release/$arch/vmlinux.new \
+                     /var/lib/images/debian/$release/$arch/vmlinux
+                ssh $server \
+                  mv /var/lib/images/debian/$release/$arch/initrd.img.new \
+                     /var/lib/images/debian/$release/$arch/initrd.img
+                ;;
+        esac
+      done

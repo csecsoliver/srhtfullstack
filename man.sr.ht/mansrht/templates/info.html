@@ -1,0 +1,77 @@
+{% extends "manage.html" %} {% block content %}
+<div class="row">
+  <div class="col-md-6">
+  {% if is_root %}
+    <p>
+    Visit
+    {% set repo_url = git_repo_url(wiki) %}
+    <a
+      href="{{ repo_url }}/settings/info"
+      target="_blank"
+      rel="noopener">{{ repo_url }}/settings/info</a>
+    to control visibility of the backing repo for the root wiki.
+    </p>
+  {% else %}
+    <form method="POST">
+      {{csrf_token()}}
+      <fieldset class="form-group">
+        <div class="form-check form-check-inline">
+          <label
+            class="form-check-label"
+            title="Publically visible and listed on your profile"
+          >
+            <input
+              class="form-check-input"
+              type="radio"
+              name="visibility"
+              value="PUBLIC"
+              {{ "checked" if wiki.visibility == Visibility.PUBLIC else "" }}
+            > Public
+          </label>
+        </div>
+        <div class="form-check form-check-inline">
+          <label
+              class="form-check-label"
+              title="Visible to anyone with the link, but not shown on your profile"
+            >
+            <input
+              class="form-check-input"
+              type="radio"
+              name="visibility"
+              value="UNLISTED"
+              {{ "checked" if wiki.visibility == Visibility.UNLISTED else "" }}
+            > Unlisted
+          </label>
+        </div>
+        <div class="form-check form-check-inline">
+          <label
+            class="form-check-label"
+            title="Only visible to you and your collaborators"
+          >
+            <input
+              class="form-check-input"
+              type="radio"
+              name="visibility"
+              value="PRIVATE"
+              {{ "checked" if wiki.visibility == Visibility.PRIVATE else "" }}
+            > Private
+          </label>
+        </div>
+      </fieldset>
+      <p>
+      Visiblity of the backing repo is controlled separately. To manage settings
+      for your backing repo, visit
+      {% set repo_url = git_repo_url(wiki) %}
+      <a
+        href="{{ repo_url }}/settings/info"
+        target="_blank"
+        rel="noopener">{{ repo_url }}/settings/info</a>.
+      </p>
+      <button type="submit" class="btn btn-primary pull-right">
+        Save {{icon("caret-right")}}
+      </button>
+    </form>
+  {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,210 @@
+{% extends "list.html" %}
+{% block title %}
+<title>
+  {{ thread.subject }} &mdash; {{ cfg("sr.ht", "site-name") }} lists
+</title>
+{% endblock %}
+{% block head %}
+<link rel="alternate" type="application/mbox" href="{{ url_for('archives.mbox',
+    owner_name=owner.canonical_name, list_name=ml.name,
+    message_id=thread.message_id) }}">
+{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      {% if user_message %}
+      <div class="alert alert-success">
+        {{user_message}}
+      </div>
+      {% endif %}
+      {% if thread.patchset_id %}
+      <div class="alert alert-info">
+        This thread contains a patchset. You're looking at the original emails,
+        but you may wish to use the patch review UI.
+        <a class="btn btn-primary pull-right" href="{{ url_for('patches.patchset',
+          owner_name=owner.canonical_name, list_name=ml.name,
+          patchset_id=thread.patchset_id) }}"
+        >Review patch {{icon('caret-right')}}</a>
+      </div>
+      {% endif %}
+      {% macro display_message(msg) %}
+      {% set stripped_subject =
+        msg.subject[4:] if (msg.subject
+          .upper().startswith("RE: ")) else msg.subject %}
+      {% if msg == thread %}
+      <small class="text-muted pull-right" style="line-height: 2">
+        {% if msg.nreplies > 0 %}
+        <span>{{icon("reply")}} {{msg.nreplies}}</span>
+        {% endif %}
+        {% if msg.nparticipants > 1 %}
+        <span>{{icon("user")}} {{msg.nparticipants}}</span>
+        {% endif %}
+      </small>
+      <h3>
+        {{ msg.subject }}
+      </h3>
+      {% elif stripped_subject != thread.subject %}
+      <h3>{{ msg.subject }}</h3>
+      {% endif %}
+      <div>
+        <div class="message-header">
+          <div class="from">
+            {% set from_hdr = msg.parsed()['From'] %}
+            {% set from = parseaddr(from_hdr) %}
+            {% if msg.sender != None %}
+            <a href="/{{ msg.sender.canonical_name }}">{{from[0]}}</a>
+            {% else %}
+            {{from[0]}}
+            {% endif %}
+            <a href="{{reply_to(msg)}}">&lt;{{ from[1] }}&gt;</a>
+          </div>
+          {% set dkim_status, dkim_explain =
+            parse_auth_result(msg.parsed(), "dkim") %}
+          <details>
+            <summary>Details</summary>
+            <div>
+              <dl>
+                <div>
+                  <dt>Message ID</dt>
+                  <dd><code>{{ msg.message_id }}</code></dd>
+                </div>
+                {% if msg.parent_id %}
+                <div>
+                  <dt>In-Reply-To</dt>
+                  <dd>
+                    <code>
+                      {{ msg.parent.message_id }}
+                    </code>
+                    <a href="#{{msg.parent.message_id}}">(view parent)</a>
+                  </dd>
+                </div>
+                {% endif %}
+                {% if msg.message_date %}
+                <div>
+                  <dt>Sender timestamp</dt>
+                  <dd>{{"{:.0f}".format(msg.message_date.timestamp())}}</dd>
+                </div>
+                {% endif %}
+                <div>
+                  <dt>DKIM signature</dt>
+                  <dd>
+                    {% if dkim_status == None %}
+                    missing
+                    {% else %}
+                    <span
+                      {% if dkim_status == "pass" %}
+                      class="text-success"
+                      {% elif dkim_status == "neutral" %}
+                      {% else %}
+                      class="text-danger"
+                      {% endif %}
+                      title="{{dkim_explain}}"
+                    >
+                      {% if dkim_status == "pass" %}
+                      {{icon('check')}}
+                      {% elif dkim_status == "neutral" %}
+                      {% else %}
+                      {{icon('times')}}
+                      {% endif %}
+                      {{dkim_status}}
+                      {% if dkim_status not in ["pass", "neutral"]
+                        and ml.mirror_id %}
+                      (DKIM failures on mirrored lists are common)
+                      {% endif %}
+                    </span>
+                    {% endif %}
+                  </dd>
+                </div>
+              </dl>
+              <a href="{{ url_for(".raw",
+                  owner_name=ml.owner.canonical_name,
+                  list_name=ml.name,
+                  message_id=msg.message_id
+                ) }}" target="_blank">Download raw message</a>
+              {% if ListAccess.moderate in access %}
+              <h4 style="margin-top: 1rem">Moderation tools</h4>
+              <form
+                method="POST"
+                action="{{url_for("archives.remove_message",
+                  owner_name=ml.owner.canonical_name, list_name=ml.name,
+                  message_id=msg.message_id)}}"
+              >
+                {{csrf_token()}}
+                <button class="btn btn-danger">
+                  Remove message from the archives
+                  {{icon('caret-right')}}
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </details>
+          <div class="date">
+            <a
+              id="{{ msg.message_id }}"
+              href="#{{ msg.message_id }}"
+              class="text-muted"
+            >{{ msg.created | date }}</a>
+          </div>
+          <div class="msg-info">
+            {% if msg.patch() != None %}
+            <span class="info">
+              {% set stats = diffstat(msg) %}
+              Patch:
+              <span class="text-success">+{{stats.added}}</span>
+              <span class="text-danger">-{{stats.removed}}</span>
+            </span>
+            {% endif %}
+            {#
+              permerror issues are inaccurate for as-of-yet unknown reasons.
+              See thread on opendkim-users 2019-03-04
+            #}
+            {% if dkim_status != None and dkim_status != "pass"
+              and dkim_status != "permerror"
+              and not ml.mirror_id %}
+            <span class="info" title="{{ dkim_explain }}">
+              DKIM signature:
+              <span class="text-danger">
+                {{icon("times")}} {{dkim_status}}
+              </span>
+            </span>
+            {% endif %}
+          </div>
+        </div>
+        {{ format_body(msg) }}
+      </div>
+      {% endmacro %}
+
+      {{ display_message(thread) }}
+      {% for msg in messages %}
+      {{ display_message(msg) }}
+      {% endfor %}
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6 offset-md-6">
+      <div class="form-group">
+        <a class="btn btn-primary btn-block"
+          href="{{reply_to(thread.replies[-1] if thread.replies else thread)}}"
+        >Reply to thread {{icon('caret-right')}}</a>
+        <a class="btn btn-default btn-block" href="{{ url_for('archives.mbox',
+          owner_name=owner.canonical_name, list_name=ml.name,
+          message_id=thread.message_id) }}"
+        >Export thread (mbox) {{icon('caret-right')}}</a>
+        <form
+          style="margin-top: 0.5rem"
+          action="{{ url_for('archives.forward',
+            owner_name=owner.canonical_name, list_name=ml.name,
+            message_id=thread.message_id) }}"
+          method="POST"
+        >
+          {{csrf_token()}}
+          <button
+            class="btn btn-default btn-block"
+          >Forward this thread to me {{icon('caret-right')}}</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

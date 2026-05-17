@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="header-tabbed">
+  <div class="container">
+    {% macro link(path, title) %}
+    <a
+      class="nav-link {% if view == title %}active{% endif %}"
+      href="{{ path }}">{{ title }}</a>
+    {% endmacro %}
+    <h2>
+      <a href="{{ tracker.owner|user_url }}">{{ tracker.owner }}</a>/<wbr
+     >{{ tracker.name }}
+    </h2>
+    <ul class="nav nav-tabs">
+      <li class="nav-item">
+        <a class="nav-link"
+         href="{{tracker|tracker_url}}"
+        >{{icon("caret-left")}}&nbsp;back</a>
+      </li>
+      <li class="nav-item">
+        {{link(url_for("settings.details_GET",
+          owner=tracker.owner.canonical_name,
+          name=tracker.name), "details")}}
+      </li>
+      <li class="nav-item">
+        {{link(url_for("settings.access_GET",
+          owner=tracker.owner.canonical_name,
+          name=tracker.name), "access")}}
+      </li>
+      <li class="nav-item">
+        {{link(url_for("settings.import_export_GET",
+          owner=tracker.owner.canonical_name,
+          name=tracker.name), "import/export")}}
+      </li>
+      <li class="nav-item">
+        {{link(url_for("settings.delete_GET",
+          owner=tracker.owner.canonical_name,
+          name=tracker.name), "delete")}}
+      </li>
+    </ul>
+  </div>
+</div>
+<div class="container">
+  {% block content %}{% endblock %}
+</div>
+{% endblock %}

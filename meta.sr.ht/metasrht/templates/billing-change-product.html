@@ -1,0 +1,179 @@
+{% extends "meta.html" %}
+{% from "partials/product-list.html" import product_list %}
+{% set sub = user.subscription %}
+
+{% block title %}
+<title>Change product - {{cfg("sr.ht", "site-name")}}</title>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const products = [
+  {% for product in products %}
+  {
+    id: {{product.id}},
+    prices: {
+      {% for price in product.prices %}
+      "{{price.currency.value}}": {{price.amount}},
+      {% endfor %}
+    },
+  },
+  {% endfor %}
+];
+let currency = "{{sub.currency.value}}";
+</script>
+<script src="/static/meta.sr.ht/billing-setup.js"></script>
+{% endblock %}
+
+{% block content %}
+<noscript>
+  <div class="row">
+    <div class="col-md-12">
+        <div class="alert alert-danger">
+          {{icon('exclamation-triangle')}} <strong>Error:</strong>
+          Our third-party payment processor requires JavaScript to be enabled to
+          function. We apologize for the inconvenience. Please enable JavaScript
+          to proceed. If you are unable or unwilling to enable JavaScript you may
+          <a
+            href="mailto:{{cfg('sr.ht', 'owner-email')}}"
+          >request financial aid</a> on this basis.
+        </div>
+    </div>
+  </div>
+</noscript>
+
+<div class="noscript-hidden">
+  <div class="row">
+    <div class="col-md-10 offset-md-1">
+      {% if user.payment_status == PaymentStatus.CURRENT and sub.autorenew %}
+
+      {% if sub.status == SubscriptionStatus.ACTIVE %}
+      <div class="alert alert-info">
+        <strong>Notice:</strong> Your account is paid and up-to-date. Changes to
+        your subscription will take place at the end of your current payment term
+        {{user.payment_due | date}}.
+      </div>
+      {% elif sub.status == SubscriptionStatus.SETTLEMENT %}
+      <div class="alert alert-info">
+        <strong>Notice:</strong> Your account payment was charged
+        {{sub.updated | date}} and is awaiting settlement. Changes to your
+        subscription will take place at the end of the next payment term,
+        {{user.payment_due | date}}.
+      </div>
+      {% endif %}
+
+      {% elif user.payment_status == PaymentStatus.CURRENT and not sub.autorenew %}
+
+      <div class="alert alert-warning">
+        <strong>Notice:</strong> Your subscription was cancelled on
+        {{sub.updated.strftime("%B %d, %Y")}}, but you still have access to
+        paid features until the end of your current term. If you choose a plan
+        on this page, your automatic payments will resume and the changes you
+        make here will apply from your next payment on
+        {{user.payment_due.strftime("%B %d, %Y")}}.
+      </div>
+
+      {% elif user.payment_status == PaymentStatus.DELINQUENT %}
+
+      <div class="alert alert-info">
+        <strong>Notice:</strong> Your account is past due. After choosing a new
+        plan you will be asked to complete your payment.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <form class="row" method="POST">
+    {{csrf_token()}}
+    <div class="offset-md-3 col-md-6 products">
+      <h3>Choose a new plan</h3>
+
+      {{ product_list(cfg, products) }}
+
+      <p class="hide-after-selection">
+        If you cannot afford a paid subscription, or cannot pay for any other
+        reason, please
+        <a href="mailto:{{cfg('sr.ht', 'owner-email')}}">apply for financial aid</a>
+        instead.
+      </p>
+
+      {% if sub.product.retired %}
+      <div class="alert alert-warning hide-after-selection">
+        <strong>Notice</strong>: Your paid subscription is no longer offered to
+        new customers at your current price. If you change your subscription
+        plan, your current plan will no longer be available to you in the
+        future.
+      </div>
+      {% endif %}
+
+      <fieldset class="form-group payment-interval show-after-selection d-none">
+        <legend>Choose a billing interval</legend>
+        <div class="form-check">
+          <label class="form-check-label">
+            <input
+              class="form-check-input"
+              type="radio"
+              name="interval"
+              value="MONTHLY"
+              checked
+              > <span id="price-monthly">$X</span>/month
+            <small class="form-text text-muted">
+              Normal pricing for monthly subscriptions
+            </small>
+          </label>
+        </div>
+        <div class="form-check">
+          <label class="form-check-label">
+            <input
+              class="form-check-input"
+              type="radio"
+              name="interval"
+              value="ANNUALLY"
+              > <span id="price-annually">$X</span>/year
+            <small class="form-text text-muted">
+              2 free months when paid annually
+            </small>
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="form-group show-after-selection d-none">
+        <button class="btn btn-primary" type="submit">
+          {% if user.payment_status == PaymentStatus.DELINQUENT %}
+          Continue to payment {{icon('caret-right')}}
+          {% else %}
+          Select product {{icon('caret-right')}}
+          {% endif %}
+        </button>
+      </div>
+
+    </div>
+  </form>
+
+  <div class="row" style="margin-top: 1rem">
+    <div class="col-md-8 offset-md-2">
+      {{icon('exclamation-circle')}} <strong>Important notices</strong>
+      <ul>
+        <li>
+          Prices shown do not include applicable taxes. If applicable, taxes
+          are calculated and shown after collecting your billing address.
+        </li>
+        <li>
+          At the end of your selected term, your renewal payment will be
+          automatically charged to the payment method you have on file. You can
+          cancel automatic renewal at any time.
+        </li>
+        <li>
+          In accordance with European regulations, your billing records are
+          retained for up to 7 years, even if you delete your account.
+        </li>
+        <li>
+          See the <a href="https://man.sr.ht/terms.md">terms of service</a> for
+          more details.
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

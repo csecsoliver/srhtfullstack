@@ -1,0 +1,234 @@
+#!/bin/sh -eux
+: "$openbsd_version"
+
+arch="$1"
+
+# QEMU requires xbase
+openbsd_sets="${openbsd_sets:-"base comp xbase xshare"}"
+openbsd_kernel="${openbsd_kernel:-"bsd.mp"}"
+openbsd_installurl="${openbsd_installurl:-"https://cdn.openbsd.org/pub/OpenBSD"}"
+
+short_version="$(echo "$openbsd_version" | tr -d .)"
+
+image_size="16g"
+image_packages="bash git"
+snapshot="${snapshot:-NO}"
+pkg_add_params=""
+openbsd_public_key="openbsd-${short_version}-base.pub"
+
+# Run syspatch by default on architectures where it's supported
+case "$arch" in
+	amd64|arm64|i386)
+		run_syspatch=${run_syspatch:-YES}
+		;;
+	*)
+		run_syspatch=${run_syspatch:-NO}
+		;;
+esac
+
+openbsd_bootstrap="${openbsd_bootstrap:-NO}"
+# Force bootstrap mode when cross-building, unless we're building snapshots
+if [ "$(uname -r)" != "$openbsd_version" ] && [ "$snapshot" = "NO" ]; then
+  openbsd_bootstrap=YES
+fi
+
+if [ "$snapshot" = "YES" ]; then
+	mirror_dir="snapshots"
+	run_syspatch=NO
+	pkg_add_params="-Dsnap"
+else
+	mirror_dir="${openbsd_version}"
+fi
+
+echo "Will run syspatch: $run_syspatch"
+
+create_image() {
+	vmctl create -s "$2" "$1"
+}
+
+BUILD_DIR="$PWD"
+mkdir -p "workdir"
+mkdir -p "$arch"
+
+cd_workdir() {
+	cd "$BUILD_DIR"/workdir
+}
+
+cd_workdir
+
+set_files=""
+for s in $openbsd_sets; do
+	set_files="$set_files ${s}${short_version}.tgz"
+done
+
+for f in $set_files $openbsd_kernel SHA256.sig SHA256
+do
+	test -f "$f" || ftp "${openbsd_installurl}/${mirror_dir}/${arch}/${f}"
+done
+
+signify -Cp /etc/signify/"$openbsd_public_key" \
+	-x SHA256.sig $set_files $openbsd_kernel
+
+# Create image that will host the filesystem
+rm -f root.img
+create_image root.img "$image_size"
+vnconfig vnd0 root.img
+fdisk -iy vnd0
+cat >/tmp/partitions <<EOF
+/ 1G-* 100%
+EOF
+disklabel -w -A -T /tmp/partitions vnd0
+
+# prepare root filesystem under /mnt
+for f in $set_files
+do
+	tar -zxphf "$f" -C /mnt
+done
+
+tar -zxphf /mnt/var/sysmerge/etc.tgz -C /mnt
+tar -zxphf /mnt/var/sysmerge/xetc.tgz -C /mnt
+
+cat > /mnt/etc/fstab <<EOF
+/dev/sd0a /     ffs rw,wxallowed 1 1
+EOF
+
+cd /mnt/dev
+sh MAKEDEV all
+cd_workdir
+
+cat >>/mnt/etc/ssh/sshd_config <<EOF
+PermitRootLogin yes
+PasswordAuthentication yes
+PermitEmptyPasswords yes
+EOF
+
+echo "build" > /mnt/etc/myname
+echo "10.0.2.2" > /mnt/etc/mygate
+echo "inet 10.0.2.15 255.255.255.128" > /mnt/etc/hostname.vio0
+echo "nameserver 8.8.8.8" >/mnt/etc/resolv.conf
+echo "nameserver 9.9.9.9" >>/mnt/etc/resolv.conf
+echo "nameserver 1.1.1.1" >>/mnt/etc/resolv.conf
+echo "127.0.0.1 localhost.localdomain localhost" >/mnt/etc/hosts
+echo "::1 localhost.localdomain localhost" >>/mnt/etc/hosts
+echo "$openbsd_installurl" > /mnt/etc/installurl
+ln -sf /usr/share/zoneinfo/UTC /mnt/etc/localtime
+
+cat >>/mnt/etc/rc.conf.local <<EOF
+dhcpleased_flags=NO
+library_aslr=NO
+pf=NO
+pflogd_flags=NO
+resolvd_flags=NO
+slaacd_flags=NO
+sndiod_flags=NO
+EOF
+
+cp "$openbsd_kernel" /mnt/bsd
+if [ "${openbsd_bootstrap}" = "NO" ]; then
+  # We're not bootstrapping: syspatch can work
+  # lifted from openbsd install.sub to make syspatch work
+  cp SHA256.sig /mnt/var/db/installed.SHA256.sig
+  sha256 /mnt/bsd | (umask 077; sed 's,/mnt,,' >/mnt/var/db/kernel.SHA256)
+  rm -rf /mnt/usr/share/relink/kernel
+  mkdir -m 700 /mnt/usr/share/relink/kernel
+  tar -C /mnt/usr/share/relink/kernel -xzf /mnt/usr/share/relink/kernel.tgz GENERIC.MP
+  rm -f /mnt/usr/share/relink/kernel.tgz
+  echo "Relinking kernel"
+  chroot /mnt /bin/ksh -e -c "cd /usr/share/relink/kernel/GENERIC.MP; make newbsd; make newinstall" > /dev/null
+
+  if [ "$run_syspatch" = "YES" ]
+  then
+    set +e
+    chroot /mnt ksh -x /usr/sbin/syspatch
+    syspatch_status=$?
+    set -e
+    # Per man syspatch(8)
+    # The syspatch utility exits 0 on success, and >0 if an error occurs.  In
+    # particular, 2 indicates that applying patches was requested but no
+    # additional patch was installed.
+    test $syspatch_status -eq 0 -o $syspatch_status -eq 2
+  fi
+
+  chroot /mnt /usr/sbin/pkg_add $pkg_add_params -u
+  chroot /mnt /usr/sbin/pkg_add $pkg_add_params $image_packages
+
+  # Remove useless kernel object files. This saves about 300MB of space in the final image
+  rm -rf /mnt/usr/share/relink/kernel/GENERIC.MP/
+else
+  echo "NOTE: Building bootstrap image"
+  # Manually "install" bash and git with dependencies since pkg_add may not work in chroot, unfortunately
+  # We have to use patterns here because the versions might change
+  # Hopefully this will work enough to run a non-bootstrap genimg
+  package_url="${openbsd_installurl}/${mirror_dir}/packages/${arch}"
+  pkg_db="/mnt/var/db/pkg"
+  ftp -o packagelist "${package_url}/"
+  set -- 'bash-[0-9].*.tgz' 'git-[0-9].*.tgz'
+  while [ $# -ne 0 ]; do
+    pkg="$1"
+    shift
+    package_file=$(grep -o "\"${pkg}\"" packagelist | tr -d '"')
+    package_name="${package_file%.tgz}"
+    ftp "${package_url}/${package_file}"
+    tar -C /mnt/usr/local -xpzf "${package_file}"
+    mkdir -p "${pkg_db}/${package_name}"
+    mv /mnt/usr/local/+CONTENTS "${pkg_db}/${package_name}"
+    mv /mnt/usr/local/+DESC "${pkg_db}/${package_name}"
+    for dep in $(grep @depend "${pkg_db}/${package_name}/+CONTENTS" | cut -d: -f3); do
+      # Add the dep to the install list only if it hasn't been already processed
+      if ! [ -d "${pkg_db}/${dep}" ]; then
+        set -- "$@" "${dep}.tgz"
+      fi
+      # pkg_add metadata
+      mkdir -p "${pkg_db}/${dep}"
+      echo "$package_name" >> "${pkg_db}/${dep}/+REQUIRED_BY"
+      echo "$dep" >> "${pkg_db}/${package_name}/+REQUIRING"
+    done
+  done
+  chown -R root:wheel "$pkg_db"
+  echo "/usr/local/bin/bash" >> /mnt/etc/shells
+fi
+
+# the username "build" is already used in OpenBSD base, but it probably isn't
+# anything too important; it seems to be used to build xenocara etc.
+# There is no "build" group.
+sed -i '/^build:/d' /mnt/etc/master.passwd
+cp -r /mnt/etc/skel /mnt/home/build
+chown -R 1000:1000 /mnt/home/build
+echo "build:*:1000:" >> /mnt/etc/group
+echo "build::1000:1000:pbuild:0:0:Build user:/home/build:/usr/local/bin/bash" >> /mnt/etc/master.passwd
+echo "permit nopass keepenv build" > /mnt/etc/doas.conf
+
+pwd_mkdb -p -d /mnt/etc /mnt/etc/master.passwd
+
+cat >/mnt/usr/libexec/reorder_kernel <<EOF
+#!/bin/sh
+echo "KARL disabled"
+exit 0
+EOF
+
+# Disable boot wait. Saves 5 seconds
+echo "boot" > /mnt/etc/boot.conf
+
+cat >/mnt/home/build/.gitconfig <<EOF
+[user]
+  name = builds.sr.ht
+  email = builds@sr.ht
+EOF
+chown build:build /mnt/home/build/.gitconfig
+
+# dump root fs into vnd0a and resize it
+makefs /dev/vnd0a /mnt
+growfs -y /dev/vnd0a
+fsck -y /dev/vnd0a
+sync
+
+# root fs done, install bootloader
+mount /dev/vnd0a /mnt
+installboot -vr /mnt vnd0
+umount /mnt
+vnconfig -u vnd0
+
+cd_workdir
+vmctl create -i root.img "../$arch/root.img.qcow2"
+# Make sure the result is readable in the next task
+chmod 644 "../$arch/root.img.qcow2"

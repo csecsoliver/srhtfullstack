@@ -1,0 +1,182 @@
+{% extends "layout.html" %}
+{% block head %}
+<link rel="stylesheet" href="/static/codemirror.css">
+<style>
+.CodeMirror {
+  height: 30rem;
+  border: 1px solid #888;
+  padding: 0;
+  border-radius: 0;
+}
+</style>
+{% endblock %}
+{% block content %} 
+{% if not can_submit %}
+<section class="row">
+  <div class="col-md-8 offset-md-2">
+    <h3>Payment required</h3>
+    <p>
+    You must have a paid sourcehut account to submit jobs to builds.sr.ht.
+    Financial aid is available for users who need it.
+    <div style="margin-bottom: 1rem">
+      <a
+        href="{{get_origin('meta.sr.ht', external=True)}}/billing/setup"
+        class="btn btn-primary"
+      >Proceed to billing setup {{icon('caret-right')}}</a>
+    </div>
+    <h4>Other payment-related resources</h4>
+    <ul>
+      <li><a href="https://man.sr.ht/billing-faq.md">Billing FAQ</a></li>
+      <li><a href="https://man.sr.ht/ops/builds.sr.ht-migration.md">builds.sr.ht background information</a></li>
+    </ul>
+  </div>
+</section>
+{% else %}
+<section class="row">
+  <div class="col-md-4">
+    <p>
+      You can submit ad-hoc build manifests on this page, which is useful for
+      debugging and research. You may also submit build jobs via
+      <a href="https://man.sr.ht/builds.sr.ht/graphql.md">the API</a>,
+      <a href="https://sr.ht/~xenrox/hut">the command line</a>,
+      or one of various
+      <a href="https://man.sr.ht/builds.sr.ht/#integrations">integrations</a>.
+    </p>
+  </div>
+  <form class="col-md-8" id="manifest-form" action="/submit" method="POST">
+    {{csrf_token()}}
+    <div class="form-group">
+      <textarea
+        rows="15"
+        class="form-control {{valid.cls("manifest")}}"
+        placeholder="Enter or paste build manifest..."
+        name="manifest"
+        id="editor"
+      >{{manifest if manifest else ""}}</textarea>
+      {{valid.summary("manifest")}}
+      <script>
+        // @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPL-3.0-only
+        /* Reduce effects of FOUC for JS users */
+        document.getElementById('editor').style.display = 'none';
+        // @license-end
+      </script>
+    </div>
+    <div class="form-group">
+      <label for="note">Add note</label>
+      <textarea
+        class="form-control"
+        id="note"
+        name="note"
+        placeholder="Submitted on the web"
+        rows="{{note_rows}}"
+      >{{note if note else ""}}</textarea>
+    </div>
+    <fieldset class="form-group">
+      <legend>Visibility</legend>
+      <div class="form-check form-check-inline">
+        <label
+          class="form-check-label"
+          title="Publically visible and listed on your profile"
+        >
+          <input
+            class="form-check-input"
+            type="radio"
+            name="visibility"
+            value="PUBLIC"> Public
+        </label>
+      </div>
+      <div class="form-check form-check-inline">
+        <label
+            class="form-check-label"
+            title="Visible to anyone with the link, but not shown on your profile"
+          >
+          <input
+            class="form-check-input"
+            type="radio"
+            name="visibility"
+            value="UNLISTED"
+            checked> Unlisted
+        </label>
+      </div>
+      <div class="form-check form-check-inline">
+        <label
+          class="form-check-label"
+          title="Only visible to you and your collaborators"
+        >
+          <input
+            class="form-check-input"
+            type="radio"
+            name="visibility"
+            value="PRIVATE"> Private
+        </label>
+      </div>
+    </fieldset>
+    {{valid.summary()}}
+    <div class="form-group">
+      <a
+        class="pull-right"
+        href="https://man.sr.ht/builds.sr.ht/manifest.md"
+        target="_blank"
+      >Build manifest reference {{icon("caret-right")}}</a>
+      <button type="submit" class="btn btn-primary">
+        Submit {{icon("caret-right")}}
+      </button>
+    </div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="/static/codemirror.js"></script>
+<script src="/static/builds.sr.ht/yaml.js"></script>
+<script>
+// @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPL-3.0-only
+const el = document.getElementById('editor');
+let cm = CodeMirror(elt => {
+  el.parentNode.replaceChild(elt, el);
+}, {
+  value: el.value,
+  mode: 'yaml',
+  lineNumbers: true,
+  autofocus: true,
+  indentWithTabs: false,
+  smartIndent: true,
+  inputStyle: "textarea",
+  extraKeys: {
+    Tab: (cm) => {
+      if (cm.getMode().name === 'null') {
+        cm.execCommand('insertTab');
+      } else {
+        if (cm.somethingSelected()) {
+          cm.execCommand('indentMore');
+        } else {
+          cm.execCommand('insertSoftTab');
+        }
+      }
+    },
+    'Shift-Tab': (cm) => cm.execCommand('indentLess')
+  },
+});
+
+for (let i = 0; i < el.classList.length; i += 1) {
+  cm.display.wrapper.classList.add(el.classList[i]);
+};
+
+cm.display.wrapper.setAttribute("autocapitalize", "off");
+cm.display.wrapper.setAttribute("autocomplete", "off");
+cm.display.wrapper.setAttribute("spellcheck", "false");
+cm.display.wrapper.setAttribute("autocorrect", "off");
+
+document.querySelector('button[type="submit"]').addEventListener('click', ev => {
+  ev.preventDefault();
+  let form = document.getElementById('manifest-form');
+  let node = document.createElement('input');
+  node.type = 'hidden';
+  node.name = 'manifest';
+  node.value = cm.getValue();
+  form.appendChild(node);
+  form.submit();
+});
+// @license-end
+</script>
+{% endblock %}

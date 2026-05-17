@@ -1,0 +1,41 @@
+{% extends "project-base.html" %}
+{% block title %}
+<title>Delete {{project.name}}</title>
+{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      <form method="POST">
+        {{csrf_token()}}
+        <p>
+          This will <strong>permanently</strong> delete your project,
+          <strong>{{project.name}}</strong>. This cannot be undone.
+        </p>
+        <div class="row">
+          <div class="col-md-3">
+            <button class="btn btn-danger btn-block" type="submit">
+              Delete {{project.name}} {{icon('caret-right')}}
+            </button>
+          </div>
+          <div class="col-md-3">
+            <a
+              href="{{url_for("projects.config_GET",
+                   owner=owner.canonical_name, project_name=project.name)}}"
+              class="btn btn-default btn-block"
+            >Cancel, keep project {{icon('caret-right')}}</a>
+          </div>
+          {#
+          <div class="col-md-6">
+            <label class="checkbox">
+              <input type="checkbox" name="delete-resources" />
+              Also delete project resources (repos, mailing lists, etc)
+            </label>
+          </div>
+          #}
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,239 @@
+{% extends "project-base.html" %}
+{% block title %}
+<title>{{project.name}} project settings</title>
+{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="row">
+    <div class="col-lg-12 event-list">
+      <form class="event" method="POST">
+        {{csrf_token()}}
+        <div class="row">
+          <div class="col-lg-6">
+            <div class="form-group {{valid.cls("name")}}">
+              <label class="d-block" for="name">
+                Project name
+                <a
+                  href="/{{ project.owner.canonical_name }}/{{ project.name }}/settings/rename"
+                  class="pull-right"
+                >Rename?</a>
+              </label>
+              <input
+                type="text"
+                id="name"
+                class="form-control"
+                readonly
+                value="{{project.name}}" />
+            </div>
+            <div class="form-group">
+              <label for="description">Description</label>
+              <input
+                class="form-control {{valid.cls("description")}}"
+                type="text"
+                id="description"
+                name="description"
+                placeholder="Short description of your project, shown in lists"
+                value="{{description or project.description}}"
+                required
+                maxlength="512" />
+              {{valid.summary("description")}}
+            </div>
+            <div class="form-group">
+              <label for="tags">Tags</label>
+              <input
+                class="form-control {{valid.cls("tags")}}"
+                type="text"
+                id="tags"
+                name="tags"
+                placeholder="Up to three comma-separated topics"
+                value="{{tags or ", ".join(project.tags)}}"
+                aria-describedBy="tags-help" />
+              <small class="form-text text-muted" id="tag-help">
+                <a
+                  href="https://man.sr.ht/hub.sr.ht/#best-practices-for-tags"
+                  rel="noopener"
+                >Best practices for tags {{icon('external-link-alt')}}</a>
+              </small>
+              {{valid.summary("tags")}}
+            </div>
+            <div class="form-group">
+              <label for="project-website">Website</label>
+              <input
+                class="form-control {{valid.cls("website")}}"
+                type="text"
+                id="website"
+                name="website"
+                placeholder="http://example.org"
+                value="{{website or project.website or ""}}" />
+              {{valid.summary("website")}}
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <fieldset class="form-group">
+              <legend>Project Visibility</legend>
+              <div class="form-check">
+                <label class="form-check-label">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="visibility"
+                    {% if (visibility and visibility == "PUBLIC") or project.visibility.value == "PUBLIC" %}
+                    checked
+                    {% endif %}
+                    value="PUBLIC"> Public
+                  <small id="visibility-public-help" class="form-text text-muted">
+                    Shown on your profile and listed in the public project index
+                  </small>
+                </label>
+              </div>
+              <div class="form-check">
+                <label
+                    class="form-check-label"
+                    title="Visible to anyone with the link, but not shown on your profile"
+                  >
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="visibility"
+                    {% if (visibility and visibility == "UNLISTED") or project.visibility.value == "UNLISTED" %}
+                    checked
+                    {% endif %}
+                    value="UNLISTED"> Unlisted
+                  <small id="visibility-unlisted-help" class="form-text text-muted">
+                    Visible to anyone who knows the URL, but not shown on your profile
+                  </small>
+                </label>
+              </div>
+              <div class="form-check">
+                <label
+                  class="form-check-label"
+                  title="Only visible to you and your collaborators"
+                >
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="visibility"
+                    {% if (visibility and visibility == "PRIVATE") or project.visibility.value == "PRIVATE" %}
+                    checked
+                    {% endif %}
+                    value="PRIVATE"> Private
+                  <small id="visibility-unlisted-help" class="form-text text-muted">
+                    Only visible to you and your collaborators
+                  </small>
+                </label>
+              </div>
+            </fieldset>
+          </div>
+        </div>
+        <div class="row form-group" style="margin-top: 1rem">
+          <div class="col-md-3">
+            <button type="submit" class="btn btn-primary btn-block">
+              Save details {{icon('caret-right')}}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="col-lg-10 event-list">
+      <div class="event">
+        <h3>Source code repositories</h3>
+        <p>
+          Git and Mercurial repositories help you share this project's source
+          code with your collaborators.
+        </p>
+        <div class="row">
+          <div class="col-md-3">
+            <a
+              href="{{url_for("sources.new_GET",
+                owner=owner.canonical_name, project_name=project.name)}}"
+              class="btn btn-primary btn-block"
+            >
+              Add repository {{icon('caret-right')}}
+            </a>
+          </div>
+          <div class="col-md-3">
+            <a
+              href="{{url_for("sources.manage_GET",
+                owner=owner.canonical_name, project_name=project.name)}}"
+              class="btn btn-default btn-block"
+            >
+              Manage sources {{icon('caret-right')}}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="event">
+        <h3>Mailing lists</h3>
+        <p>
+          Mailing lists give users a place to ask questions about the project
+          or send patches to contribute to the code.
+        </p>
+        <div class="row">
+          <div class="col-md-3">
+            <a
+              href="{{url_for("mailing_lists.new_GET",
+                owner=owner.canonical_name, project_name=project.name)}}"
+              class="btn btn-primary btn-block"
+            >
+              Add mailing list {{icon('caret-right')}}
+            </a>
+          </div>
+          <div class="col-md-3">
+            <a
+              href="{{url_for("mailing_lists.manage_GET",
+                owner=owner.canonical_name, project_name=project.name)}}"
+              class="btn btn-default btn-block"
+            >
+              Manage mailing lists {{icon('caret-right')}}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="event">
+        <h3>Ticket trackers</h3>
+        <p>
+          Bug trackers give you a place to organize your tasks and record known
+          defects.
+        </p>
+        <div class="row">
+          <div class="col-md-3">
+            <a
+              href="{{url_for("trackers.new_GET",
+                owner=owner.canonical_name, project_name=project.name)}}"
+              class="btn btn-primary btn-block"
+            >
+              Add tracker {{icon('caret-right')}}
+            </a>
+          </div>
+          <div class="col-md-3">
+            <a
+              href="{{url_for("trackers.manage_GET",
+                owner=owner.canonical_name, project_name=project.name)}}"
+              class="btn btn-default btn-block"
+            >
+              Manage trackers {{icon('caret-right')}}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="event">
+        <h3>Delete project</h3>
+        <p>Remove {{project.name}} from the project hub.</p>
+        <div class="row">
+          <div class="col-md-3">
+            <a
+              href="{{url_for("projects.delete_GET",
+                owner=owner.canonical_name, project_name=project.name)}}"
+                class="btn btn-danger btn-block"
+            >Delete project {{icon('caret-right')}}</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>Profile - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8">
+    <h3>Edit your profile</h3>
+    <form
+      method="POST"
+      action="/profile"
+      enctype="multipart/form-data"
+    >
+      {{csrf_token()}}
+      <div class="avatar-form row">
+        <div class="col-md-3">
+          {% if current_user.avatar %}
+          <img
+            src="{{avatar_url(current_user)}}"
+            alt="{{current_user.username}}'s avatar" />
+          {% else %}
+          <div class="avatar-placeholder"></div>
+          {% endif %}
+        </div>
+        <div class="col-md-9">
+          <div class="form-group">
+            <label for="avatar">
+              Choose an avatar
+              {% if current_user.avatar %}
+              <a href="{{url_for('.remove_avatar_GET')}}">or remove it</a>
+              {% endif %}
+            </label>
+            <input
+              type="file"
+              class="form-control-file {{valid.cls("avatar")}}"
+              id="avatar"
+              name="avatar"
+              aria-describedby="avatar-info"
+              accept="image/jpeg, image/png, image/webp"
+            />
+            <small id="avatar-info" class="form-text text-muted">
+              If the selected image's aspect ratio is not 1:1, your avatar will
+              be cropped. Suggested dimensions are at least 256&times;256, and
+              anything larger than 512&times;512 will be scaled down.
+            </small>
+            {{valid.summary("avatar")}}
+          </div>
+        </div>
+      </div>
+      <div class="form-group row">
+        <div class="col-md-8">
+          <label for="username">
+            Username <span class="text-muted">(you can't edit this)</span>
+          </label>
+          <input
+            type="text"
+            class="form-control"
+            id="username"
+            value="{{current_user.username}}"
+            readonly />
+        </div>
+        <div class="col-md-4">
+          <label for="pronouns">Pronouns</label>
+          <input
+            type="text"
+            class="form-control {{valid.cls("pronouns")}}"
+            id="pronouns"
+            name="pronouns"
+            placeholder="foo/bar"
+            value="{{current_user.pronouns if current_user.pronouns else ""}}"
+            maxlength="128" />
+          {{valid.summary("pronouns")}}
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="email">Email address <span class="text-danger">*</span></label>
+        <input
+          type="email"
+          class="form-control {{valid.cls("email")}}"
+          id="email"
+          name="email"
+          value="{{email or current_user.email}}" />
+        {{valid.summary("email")}}
+      </div>
+      <div class="form-group">
+        <label for="url">URL</label>
+        <input
+          type="text"
+          class="form-control {{valid.cls("url")}}"
+          id="url"
+          name="url"
+          value="{{url or current_user.url or ""}}" />
+        {{valid.summary("url")}}
+      </div>
+      <div class="form-group">
+        <label for="location">Location</label>
+        <input
+          type="text"
+          class="form-control {{valid.cls("location")}}"
+          id="location"
+          name="location"
+          value="{{location or current_user.location or ""}}" />
+        {{valid.summary("location")}}
+      </div>
+      <div class="form-group">
+        <label for="bio">Bio</label>
+        <textarea
+          class="form-control {{valid.cls("bio")}}"
+          placeholder="Markdown supported"
+          id="bio"
+          name="bio"
+          rows="5">{{bio or current_user.bio or ""}}</textarea>
+        {{valid.summary("bio")}}
+      </div>
+      {{valid.summary()}}
+      <button type="submit" class="btn btn-primary pull-right">
+        Save changes {{icon("caret-right")}}
+      </button>
+    </form>
+  </div>
+  <div class="col-md-4">
+    <h3>Export your data</h3>
+    <p>
+      You may export your account data in standard formats using the
+      <a href="https://sr.ht/~xenrox/hut">hut tool</a>. This data can be
+      imported into another SourceHut instance or used with any compatible
+      software (e.g. git, GNU Mailman, etc).
+    </p>
+
+    <h3>Close your account</h3>
+    <p>
+      You may permanently remove your projects and all personal data from our
+      services. This button will bring you to a confirmation page.
+    </p>
+    <a href="{{url_for(".profile_delete_GET")}}" class="btn btn-danger">
+      Delete my account {{icon('caret-right')}}
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% macro event(event, project=False) %}
+<div class="event">
+{% if event.event_type == EventType.source_repo_added %}
+  <a
+    href="{{event.source_repo.url()}}"
+  >{{event.source_repo.owner.canonical_name}}/{{event.source_repo.name}}</a>
+  <p>New {{event.source_repo.repo_type.value}} repository added</p>
+{% elif event.event_type == EventType.mailing_list_added %}
+  <a
+    href="{{event.mailing_list.url()}}"
+  >{{event.mailing_list.owner.canonical_name}}/{{event.mailing_list.name}}</a>
+  <p>New mailing list added</p>
+{% elif event.event_type == EventType.tracker_added %}
+  <a
+    href="{{event.tracker.url()}}"
+  >{{event.tracker.owner.canonical_name}}/{{event.tracker.name}}</a>
+  <p>New ticket tracker added</p>
+{% elif event.event_type == EventType.external_event %}
+  {{event.external_summary | md}}
+  {{event.external_details | md}}
+{% else %}
+TODO: implement event type {{event.event_type}}
+{% endif %}
+  <small class="text-muted">
+    {{event.created | date}}
+    {% if project %}
+    via
+    {% for p in event.projects %}
+    <a href="{{url_for("projects.summary_GET",
+      owner=p.owner.canonical_name,
+      project_name=p.name)}}">{{p.name}}</a>{% if not loop.last %}, {% endif %}
+    {% endfor %}
+    {% endif %}
+  </small>
+</div>
+{% endmacro %}

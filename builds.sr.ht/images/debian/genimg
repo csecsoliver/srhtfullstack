@@ -1,0 +1,178 @@
+#!/bin/sh -eux
+echo "$release" >/dev/null # fail on -u if release unset
+arch=${1:-amd64}
+case $arch in
+	amd64)
+		iface=ens3
+		qarch=x86_64
+		kpkg=linux-image-amd64
+		;;
+	arm64)
+		iface=enp0s1
+		qarch=aarch64
+		kpkg=linux-image-arm64
+		;;
+	ppc64el)
+		iface=enp0s0
+		qarch=ppc64le
+		kpkg=linux-image-powerpc64le
+		;;
+	*)
+		echo "unsupported architecture $arch"
+		exit 1
+		;;
+esac
+
+cleanup() {
+	# The order here is important if you don't want to hose your mounts
+	cat /mnt/debootstrap/debootstrap.log || true
+	umount /mnt/dev/pts 2>/dev/null || true
+	umount /mnt/dev/shm 2>/dev/null || true
+	umount /mnt/dev 2>/dev/null || true
+	umount /mnt/proc 2>/dev/null || true
+	umount /mnt/run 2>/dev/null || true
+	umount /mnt/sys 2>/dev/null || true
+	umount /mnt/boot 2>/dev/null || true 
+	umount /mnt 2>/dev/null || true 
+	qemu-nbd --disconnect /dev/nbd0 || true
+}
+
+mkdir -p "$arch"
+
+qemu-img create -f qcow2 $arch/root.img.qcow2 32G
+modprobe nbd max_part=16
+qemu-nbd --connect=/dev/nbd0 $arch/root.img.qcow2
+for i in $(seq 1 5); do
+	sleep 0.$i
+	partprobe /dev/nbd0 && break
+done
+trap cleanup EXIT
+
+if [ "$arch" = "amd64" ]
+then
+	dd if=/usr/lib/syslinux/mbr/mbr.bin of=/dev/nbd0 bs=1 count=440
+fi
+
+sfdisk --no-reread /dev/nbd0 <<EOF
+1M,256M,L,*
+,2048M,S
+,,L
+EOF
+
+mkfs.ext4 /dev/nbd0p1
+mkswap /dev/nbd0p2
+mkfs.ext4 /dev/nbd0p3
+
+mount /dev/nbd0p3 /mnt
+mkdir /mnt/boot
+mount /dev/nbd0p1 /mnt/boot
+
+if [ "$arch" = "amd64" ]
+then
+	debootstrap --include=gnupg2 --arch=$arch $release /mnt
+else
+	../qemu-debootstrap --include=gnupg2 --arch=$arch $release /mnt
+fi
+
+mount --bind /dev /mnt/dev
+mount --bind /dev/pts /mnt/dev/pts
+mount --bind /dev/shm /mnt/dev/shm
+mount --bind /proc /mnt/proc
+mount --bind /run /mnt/run
+mount --bind /sys /mnt/sys
+
+run_root() {
+	chroot /mnt /usr/bin/env \
+		PATH=/sbin:/usr/sbin:/bin:/usr/bin \
+		sh -c "$*"
+}
+
+echo 'nameserver 8.8.8.8' >/mnt/etc/resolv.conf
+echo 'nameserver 9.9.9.9' >>/mnt/etc/resolv.conf
+echo 'nameserver 1.1.1.1' >>/mnt/etc/resolv.conf
+cat > /mnt/etc/network/interfaces <<EOF
+auto lo
+iface lo inet loopback
+
+auto $iface
+iface $iface inet static
+	hostname build
+	address 10.0.2.15
+	netmask 255.255.255.0
+	gateway 10.0.2.2
+EOF
+echo build > /mnt/etc/hostname
+cat > /mnt/etc/hosts <<EOF 
+127.0.0.1 build localhost
+EOF
+
+echo 'APT::Install-Recommends "False";' > /mnt/etc/apt/apt.conf.d/60recommends
+
+run_root apt-get update
+run_root apt-get -y install locales
+run_root apt-get -y install $kpkg
+run_root apt-get -y install build-essential git mercurial ssh sudo \
+	gnupg dirmngr ca-certificates apt-transport-https curl dbus \
+	systemd-timesyncd
+
+run_root ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+run_root systemctl enable systemd-timesyncd.service
+
+run_root useradd -mG sudo build
+run_root passwd -d build
+echo '%sudo ALL=(ALL) NOPASSWD: ALL' >> /mnt/etc/sudoers
+
+echo "PermitEmptyPasswords yes" >> /mnt/etc/ssh/sshd_config
+echo ssh >> /mnt/etc/securetty
+run_root systemctl enable ssh
+
+# Prevent docker from mucking up networking
+mkdir -p /mnt/etc/docker
+cat >/mnt/etc/docker/daemon.json <<EOF
+{
+	"bip": "172.18.0.1/16"
+}
+EOF
+
+run_root update-initramfs -u
+
+linuxver=$(ls /mnt/boot | grep vmlinuz | cut -d- -f2-)
+
+cat >>/mnt/etc/fstab <<EOF
+/dev/vda1 /boot ext4 rw,relatime,data=ordered 0 0
+/dev/vda2 swap swap defaults 0 0
+/dev/vda3 / ext4 rw,relatime,data=ordered 0 0
+EOF
+
+cat >/mnt/home/build/.gitconfig <<EOF
+[user]
+  name = builds.sr.ht
+  email = builds@sr.ht
+EOF
+run_root chown build:build /home/build/.gitconfig
+
+# Boot setup
+case "$arch" in 
+	amd64)
+		run_root apt-get -y install extlinux
+		extlinux -i /mnt/boot
+
+		cat >/mnt/boot/extlinux.conf <<-EOF
+		default debian
+		label debian
+			linux vmlinuz-$linuxver
+			initrd initrd.img-$linuxver
+			append root=/dev/vda3 rw quiet
+		EOF
+		;;
+	arm64)
+		cp /mnt/boot/vmlinuz-* $arch/vmlinuz
+		cp /mnt/boot/initrd.img-* $arch/initrd.img
+		;;
+	ppc64el)
+		cp /mnt/boot/vmlinux-* $arch/vmlinux
+		cp /mnt/boot/initrd.img-* $arch/initrd.img
+		;;
+esac
+
+sync

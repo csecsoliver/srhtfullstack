@@ -1,0 +1,166 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row">
+  <div class="col-lg-4">
+    <p>
+      Welcome back, {{ current_user.username }}! This is the
+      {{cfg("sr.ht", "site-name")}} paste hosting service. Documentation
+      for its use is
+      <a href="https://man.sr.ht/paste.sr.ht">available here</a>.
+    </p>
+    <a href="{{ url_for(".pastes") }}" class="btn btn-block btn-default view-pastes">
+      View your pastes {{icon('caret-right')}}
+    </a>
+  </div>
+  <div class="col-lg-8">
+    <form action="/new-paste" method="POST">
+      {{csrf_token()}}
+      {% if files %}
+      <input type="hidden" name="files" value="{{ json(files) }}" />
+      {% endif %}
+      <div class="form-group">
+        <input
+          type="text"
+          id="filename"
+          name="filename"
+          class="form-control {{valid.cls('filename')}}"
+          value="{{ filename if filename else  '' }}"
+          placeholder="File name (optional)" />
+        {{valid.summary("filename")}}
+      </div>
+      <div class="form-group">
+        <textarea
+          name="contents"
+          id="contents"
+          class="form-control {{valid.cls('contents')}}"
+          placeholder="Contents"
+          rows="15"
+        >{{contents if contents else ''}}</textarea>
+        {{valid.summary("contents")}}
+      </div>
+      {{valid.summary()}}
+      <div class="pull-right">
+        <fieldset class="form-group float-left">
+          <div class="form-check form-check-inline">
+            <label
+              class="form-check-label"
+              title="Publically visible and listed on your profile"
+            >
+              <input
+                class="form-check-input"
+                type="radio"
+                name="visibility"
+                value="PUBLIC"
+                {{ "checked" if visibility == Visibility.PUBLIC else "" }}
+              > Public
+            </label>
+          </div>
+          <div class="form-check form-check-inline">
+            <label
+              class="form-check-label"
+              title="Visible to anyone with the link, but not shown on your profile"
+            >
+              <input
+                class="form-check-input"
+                type="radio"
+                name="visibility"
+                value="UNLISTED"
+                {{ "checked" if not visibility or visibility == Visibility.UNLISTED else "" }}
+              > Unlisted
+            </label>
+          </div>
+          <div class="form-check form-check-inline">
+            <label
+              class="form-check-label"
+              title="Only visible to you"
+            >
+              <input
+                class="form-check-input"
+                type="radio"
+                name="visibility"
+                value="PRIVATE"
+                {{ "checked" if visibility == Visibility.PRIVATE else "" }}
+              > Private
+            </label>
+          </div>
+        </fieldset>
+        <button
+          type="submit"
+          name="commit"
+          value="no"
+          class="btn btn-default"
+          style="margin-right: 1rem"
+        >Add another file {{icon('caret-right')}}</button>
+        <button
+          type="submit"
+          name="commit"
+          value="yes"
+          class="btn btn-primary"
+        >Create paste {{icon('caret-right')}}</button>
+      </div>
+      <div class="clearfix"></div>
+      {% if files %}
+      <div class="event-list" style="margin-top: 1rem">
+        <div class="file-list event">
+          {% for file in files %}
+          <div style="grid-column-start: 1">{{file.filename}}</div>
+          <div class="text-muted" style="margin-left: 1rem">
+            <span title="{{"{0:0o}".format(33188)}}">
+              {{stat.filemode(33188)}}
+            </span>
+          </div>
+          <div class="text-muted" style="margin-left: 1rem">
+            <span title="{{ file.size }} bytes">
+              {{humanize.naturalsize(file.size,
+                binary=True).replace("Byte", "byte")}}
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <button
+        type="submit"
+        name="commit"
+        value="force"
+        class="btn btn-default"
+      >Use only these files {{icon('caret-right')}}</button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+<script src="/static/paste.sr.ht/ace.js"></script>
+<script src="/static/paste.sr.ht/ext-modelist.js"></script>
+<script>
+  var contents = document.getElementById("contents");
+  var form = document.querySelector("form");
+  var input = document.createElement("input");
+  input.type = "hidden";
+  input.value = contents.value;
+  input.name = "contents";
+  form.appendChild(input);
+  var editor = ace.edit(contents, {
+    behavioursEnabled: false,
+  });
+  editor.on("change", e => {
+    input.value = editor.getValue();
+  });
+  document.querySelector(".ace-tm").className += " " + contents.className;
+  const modelist = ace.require("ace/ext/modelist");
+  const getModeByFileExtension = path => {
+    const mode = modelist.getModeForPath(path);
+    return mode ? mode.mode : null;
+  }
+  const filename = document.getElementById("filename");
+  const setMode = () =>
+    editor.getSession().setMode(getModeByFileExtension(filename.value));
+  filename.addEventListener("keyup", setMode);
+  setMode();
+</script>
+<style>
+  .ace-tm {
+    height: 400px;
+    font-size: 0.9rem;
+    border-radius: 0;
+  }
+</style>
+{% endblock %}

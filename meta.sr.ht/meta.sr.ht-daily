@@ -1,0 +1,186 @@
+#!/usr/bin/env python3
+from srht.config import cfg
+from srht.database import DbSession
+from srht.graphql import InternalAuth
+db = DbSession(cfg("meta.sr.ht", "connection-string"))
+from metasrht.types import User, UserType, PGPKey, Subscription
+from metasrht.graphql import Client, PaymentIntentStatus
+from metasrht.graphql import PaymentStatus, SubscriptionStatus, PaymentInterval
+db.init()
+
+import sys
+import time
+import traceback
+from datetime import datetime, timedelta, UTC
+from metasrht.audit import expire_audit_logs
+from metasrht.email import send_email
+from string import Template
+
+origin = cfg("meta.sr.ht", "origin")
+owner_name = cfg("sr.ht", "owner-name")
+owner_email = cfg("sr.ht", "owner-email")
+site_name = cfg("sr.ht", "site-name")
+
+print("Running daily cron")
+print("Expiring old audit log entires")
+expire_audit_logs()
+
+def print_intent(intent):
+    if not intent:
+            print("CANCELLED")
+    else:
+        outcome = intent.outcome
+        intent_id = intent.id
+        status = outcome.status
+        error = outcome.error or "(no detail)"
+        if outcome.status in [
+                PaymentIntentStatus.SUCCEEDED,
+                PaymentIntentStatus.PROCESSING,
+        ]:
+            print(f"{status} [{intent_id}]")
+        else:
+            print(f"{status}: {error} [{intent_id}]")
+
+if cfg("meta.sr.ht::billing", "enabled") == "yes":
+    print("Running billing")
+    users = (User.query
+        .filter(User.user_type != UserType.suspended)
+        .filter(User.payment_status != PaymentStatus.UNPAID)
+        .filter(User.payment_due < datetime.now(UTC))
+        .filter(User.payment_due >= datetime.now(UTC) - timedelta(days=7))
+    ).all()
+    ncharges = 0
+
+    in_settlement = (Subscription.query
+        .join(User)
+        .filter(User.user_type != UserType.suspended)
+        .filter(Subscription.status == SubscriptionStatus.SETTLEMENT)
+    ).all()
+
+    ncharges = 0
+    for sub in in_settlement:
+        user = sub.user
+        client = Client(auth=InternalAuth(user))
+        print(f"Settling ~{user.username} ({ncharges+1}/{len(in_settlement)}): ",
+              end="", flush=True)
+
+        try:
+            intent = client.finalize_payment_intent(sub.payment_intent).intent
+        except:
+            print("ERROR")
+            print(traceback.format_exc())
+            ncharges += 1
+            time.sleep(2)
+            continue
+
+        print_intent(intent)
+        ncharges += 1
+        time.sleep(2)
+
+    for user in users:
+        client = Client(auth=InternalAuth(user))
+        print(f"Billing ~{user.username} ({ncharges+1}/{len(users)}): ",
+              end="", flush=True)
+
+        try:
+            intent = client.process_payment_due().intent
+        except:
+            print("ERROR")
+            print(traceback.format_exc())
+            ncharges += 1
+            time.sleep(2)
+            continue
+
+        print_intent(intent)
+        ncharges += 1
+        time.sleep(2)
+
+if cfg("meta.sr.ht::settings", "welcome-emails", default="no") == "yes":
+    print("Sending welcome emails")
+    users = (User.query
+            .filter(User.welcome_emails == 0)
+            .filter(User.user_type != UserType.pending)
+            .filter(User.created < datetime.utcnow() + timedelta(days=-1))
+        ).all()
+    nsent = 0
+    for user in users:
+        print(f"Sending to ~{user.username} ({nsent + 1}/{len(users)})")
+        try:
+            tmpl = Template("""Subject: $site_name introduction
+Reply-To: $owner_name <$owner_email>
+
+Welcome to $site_name, ~$username! I'm $owner_name, your
+friendly neighborhood sysadmin. You can send me questions or feedback by
+replying to this email, or emailing $owner_email at any time. There's
+a human being on the other end.
+
+Here are a few resources you can use to get started:
+
+Announcements list:		https://lists.sr.ht/~sircmpwn/sr.ht-announce
+Community mailing list:		https://lists.sr.ht/~sircmpwn/sr.ht-discuss
+Documentation & tutorials:	https://man.sr.ht
+IRC support & chat:		#sr.ht on irc.libera.chat
+
+This is the only automated email you're going to get, so if you want to
+get updates later, you'll have to subscribe to the sr.ht-announce list.
+You can do this from your mail client by sending an email to
+<~sircmpwn/sr.ht-announce+subscribe@lists.sr.ht>, or visit the URL
+above and click subscribe.
+
+Thanks for signing up, and let me know if you need anything!
+
+-- 
+$owner_name
+$site_name
+""")
+            rendered = tmpl.substitute(**{
+                    'site_name': site_name,
+                    'owner_name': owner_name,
+                    'owner_email': owner_email,
+                    'username': user.username
+                })
+            send_email(user.email, rendered)
+        except:
+            print("Failed!")
+        user.welcome_emails += 1
+        db.session.commit()
+        nsent += 1
+
+if cfg("meta.sr.ht::settings", "key-expiration-emails", default="no") == "yes":
+    print("Sending key expiration emails")
+    keys = (PGPKey.query
+            .filter(PGPKey.expiration < datetime.utcnow() + timedelta(days=31))
+            .filter(PGPKey.expiration > datetime.utcnow() + timedelta(days=30))
+        ).all()
+    nsent = 0
+    for key in keys:
+        user = key.user
+        print(f"Sending to ~{user.username} for key {key.id} ({nsent + 1}/{len(users)})")
+        try:
+            tmpl = Template("""Subject: Your PGP key uploaded on $site_name expires soon
+Reply-To: $owner_name <$owner_email>
+
+Hi ~$username!
+
+This is a once-only reminder that the following PGP key associated with your
+account will expire soon:
+
+Fingerprint: $fingerprint
+Expires: $expiration
+
+-- 
+$owner_name
+$site_name
+""")
+            rendered = tmpl.substitute(**{
+                    'site_name': site_name,
+                    'owner_name': owner_name,
+                    'owner_email': owner_email,
+                    'username': user.username,
+                    'fingerprint': key.fingerprint_hex,
+                    'expiration': key.expiration,
+                })
+            send_email(user.email, rendered)
+        except:
+            print("Failed")
+        nsent += 1

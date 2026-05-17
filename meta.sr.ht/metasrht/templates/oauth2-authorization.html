@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>Authorize account access - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <h3>Authorize account access</h3>
+  </div>
+</div>
+<form class="row" method="POST">
+  {{csrf_token()}}
+  <section class="col-md-8 offset-md-2 oauth2-authorize">
+    <p>
+      <strong><a
+        href="{{client.url}}"
+        target="_blank"
+        rel="noopener nofollow"
+      >{{client.name}} {{icon('external-link-alt')}}</a></strong>
+      would like to access to your {{cfg("sr.ht", "site-name")}} account.
+      <strong>{{client.name}}</strong> is a third-party application
+      operated by <strong>{{client.owner.canonical_name}}</strong>.
+      You may revoke this access at any time on the OAuth tab of your
+      meta.sr.ht profile.
+    </p>
+    <h4>Review access request</h4>
+    <p>{{client.name}} is requesting the following permissions:</p>
+    {% macro render_access(grant) %}
+      {% if grant[2] == 'RO' %}
+      <input
+        type="checkbox"
+        class="{{valid.cls(grant[0] + "/" + grant[1] + ":RO")}}"
+        name="{{grant[0]}}/{{grant[1]}}:RO"
+        id="{{grant[0]}}/{{grant[1]}}:RO"
+        checked />
+      <label for="{{grant[0]}}/{{grant[1]}}:RO">read</label>
+      {% elif grant[2] == 'RW' %}
+      <input
+        type="checkbox"
+        class="{{valid.cls(grant[0] + "/" + grant[1] + ":RO")}}"
+        name="{{grant[0]}}/{{grant[1]}}:RO"
+        id="{{grant[0]}}/{{grant[1]}}:RO"
+        {% if valid.cls(grant[0] + "/" + grant[1] + ":RO") != "is-invalid" %}
+        checked
+        {% endif %} />
+      <label for="{{grant[0]}}/{{grant[1]}}:RO">read</label>
+      and
+      <input
+        type="checkbox"
+        class="{{valid.cls(grant[0] + "/" + grant[1] + ":RW")}}"
+        name="{{grant[0]}}/{{grant[1]}}:RW"
+        id="{{grant[0]}}/{{grant[1]}}:RW"
+        checked />
+      <label for="{{grant[0]}}/{{grant[1]}}:RW">write</label>
+      {% endif %}
+    {% endmacro %}
+    <div class="event-list grant-list">
+      <ul class="event">
+        {% for grant in grants %}
+        <li>
+          {{render_access(grant)}} access to your
+          <strong>{{grant[0]}} {{grant[1]}}</strong>
+          {{valid.summary(grant[0] + "/" + grant[1] + ":RO")}}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="alert alert-info">
+      You may uncheck any permission to deny access, but doing so may prevent
+      this third-party application from working correctly.
+    </div>
+    <input type="hidden" name="client_id" value="{{ client_id }}" />
+    <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}" />
+    {% if state %}
+    <input type="hidden" name="state" value="{{ state }}" />
+    {% endif %}
+    {{valid.summary()}}
+    <button
+      type="submit"
+      name="accept"
+      class="btn btn-danger"
+    >Grant account access {{icon('caret-right')}}</button>
+    <button
+      type="submit"
+      name="reject"
+      class="btn btn-default"
+    >Cancel {{icon('caret-right')}}</button>
+  </section>
+</form>
+{% endblock %}

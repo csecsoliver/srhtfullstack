@@ -1,0 +1,29 @@
+{% if total_pages > 1 %}
+<div class="row">
+  <div class="col-4">
+  {% if page != 1 %}
+    <a
+      class="btn btn-default"
+      href="?page={{ page - 1 }}{{ coalesce_search_terms() }}"
+    >
+      {{icon('caret-left')}}
+      prev
+    </a>
+  {% endif %}
+  </div>
+  <div class="col-4 text-centered">
+    {{ page }} / {{ total_pages }}
+  </div>
+  <div class="col-4 text-right">
+  {% if page != total_pages %}
+    <a
+      class="btn btn-default"
+      href="?page={{ page + 1 }}{{ coalesce_search_terms() }}"
+    >
+      next
+      {{icon('caret-right')}}
+    </a>
+  {% endif %}
+  </div>
+</div>
+{% endif %}

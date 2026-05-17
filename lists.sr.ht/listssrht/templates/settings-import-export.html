@@ -1,0 +1,62 @@
+{% extends "settings.html" %}
+{% block content %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-10">
+      <h3>Export mail spool</h3>
+      <p>
+        This tool allows you to export your mailing list in mbox format.
+      </p>
+      <form
+        method="POST"
+        action="{{url_for("archives.export_archive",
+          owner_name=owner.canonical_name, list_name=ml.name)}}"
+      >
+        {{csrf_token()}}
+        <input type="hidden" name="days" value="-1" />
+        <button class="btn btn-primary">
+          Export mail spool {{icon("caret-right")}}
+        </button>
+      </form>
+      <h3>Import mail spool</h3>
+      {% if ml.import_in_progress %}
+      <div class="alert alert-danger">
+        An import operation is already in progress, please try again later.
+      </div>
+      {% else %}
+      <p>
+        This tool allows you to import an existing mailing list's mail spool.
+        Your spool must use the mbox format and be a maximum of 100 MiB in size.
+        If your spool doesn't meet these requirements, we have
+        <a
+          href="https://git.sr.ht/~sircmpwn/lists.sr.ht/tree/master/contrib"
+        >tools available here</a> for converting or splitting up your spool
+        locally.
+      </p>
+      <form
+        enctype="multipart/form-data"
+        method="POST"
+        action="{{url_for("settings.import_POST",
+          owner_name=owner.canonical_name, list_name=ml.name)}}"
+      >
+        {{csrf_token()}}
+        <div class="form-group">
+          <input
+            type="file"
+            id="spool"
+            name="spool"
+            required
+            class="form-control {{valid.cls("spool")}}" />
+          {{valid.summary("spool")}}
+        </div>
+        {{valid.summary()}}
+        <button class="btn btn-primary">
+          Import mbox {{icon("caret-right")}}
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+

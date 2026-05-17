@@ -1,0 +1,23 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>OAuth 2.0 - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <h3>OAuth 2.0 error occured</h3>
+    <p>
+      You're seeing this page because you were directed to a malformed OAuth
+      2.0 authorization URL by a third-party client. If you are not the
+      client administrator, <a href="/">click here</a> to proceed. If you are
+      the client administrator, the details of this error are:
+    </p>
+    <dl>
+      <dt>Error code</dt>
+      <dd><code>{{code}}</code></dd>
+      <dt>Error description</dt>
+      <dd>{{description}}</dd>
+    </dl>
+  </div>
+</div>
+{% endblock %}

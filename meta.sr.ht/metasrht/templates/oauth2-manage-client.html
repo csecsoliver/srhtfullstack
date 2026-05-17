@@ -1,0 +1,70 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>"{{client.name}}" - OAuth 2.0 - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<h3>OAuth 2.0 client management</h3>
+<div class="row">
+  <div class="col-md-8 event-list">
+    <form
+      class="event"
+      method="POST"
+      action="{{url_for("oauth2.reissue_client_secrets_POST", uuid=client.uuid)}}"
+    >
+      {{csrf_token()}}
+      <h3>Revoke tokens & client secret</h3>
+      <p>
+        If OAuth 2.0 bearer tokens issued for your OAuth client, or your client
+        secret, have been disclosed to a third-party, you must revoke all
+        tokens and have replacements issued.
+      </p>
+      <div class="row">
+        <div class="col-md-5">
+          <button
+            class="btn btn-danger btn-block"
+            type="submit"
+          >Revoke client tokens {{icon('caret-right')}}</button>
+        </div>
+      </div>
+    </form>
+
+    <form
+      class="event"
+      method="POST"
+      action="{{url_for("oauth2.unregister_client_POST", uuid=client.uuid)}}"
+    >
+      {{csrf_token()}}
+      <h3>Unregister this OAuth client</h3>
+      <p>
+        This will permanently unregister your OAuth 2.0 client,
+        "{{client.name}}", revoke all tokens issued to it, and prohibit the
+        issuance of new tokens.
+      </p>
+      <div class="row">
+        <div class="col-md-5">
+          <button
+            class="btn btn-danger btn-block"
+            type="submit"
+          >Unregister "{{client.name}}" {{icon('caret-right')}}</button>
+        </div>
+      </div>
+    </form>
+  </div>
+  <div class="col-md-4">
+    <dl>
+      <dt>Client ID</dt>
+      <dd><textarea readonly class="width-full" rows="1">{{client.uuid}}</textarea></dd>
+      <dt>Name</dt>
+      <dd>{{client.name}}</dd>
+      <dt>Description</dt>
+      <dd>{{client.description}}</dd>
+      <dt>Informative URL</dt>
+      <dd>
+        <a href="{{client.url}}" rel="nofollow noopener">{{client.url}}</a>
+      </dd>
+      <dt>Redirect URL</dt>
+      <dd><textarea readonly class="width-full" rows="1">{{client.redirect_url}}</textarea></dd>
+    </dl>
+  </div>
+</div>
+{% endblock %}

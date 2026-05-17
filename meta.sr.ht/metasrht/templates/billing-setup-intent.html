@@ -1,0 +1,89 @@
+{% extends "meta.html" %}
+
+{% block title %}
+<title>Add payment method - {{cfg("sr.ht", "site-name")}}</title>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let billingDetails = {
+  email: "{{current_user.email}}",
+  {% if address.full_name %}
+  name: "{{address.full_name}}",
+  {% endif %}
+  address: {
+    country: "{{address.country.alpha2}}",
+    {% if address.address_1 %}
+    line1: "{{address.address_1}}",
+    {% endif %}
+    {% if address.address_2 %}
+    line2: "{{address.address_2}}",
+    {% endif %}
+    {% if address.city %}
+    city: "{{address.city}}",
+    {% endif %}
+    {% if address.postcode %}
+    postal_code: "{{address.postcode}}",
+    {% endif %}
+  },
+};
+let product = {
+  currency: "{{sub.price.currency.value}}",
+};
+let return_url = "{{root}}{{url_for('billing.validate_setup_GET')}}";
+window.stripePubkey = "{{intent.public_key}}";
+window.stripeClientSecret = "{{intent.client_secret}}";
+</script>
+<script src="https://js.stripe.com/v3/"></script>
+<script src="/static/meta.sr.ht/setup-intent.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-7">
+    <h3>Add new payment method</h3>
+  </div>
+</div>
+
+<form class="row">
+  <div class="col-md-7">
+    <div id="payment-details"></div>
+    <button
+      id="submit"
+      class="btn btn-primary pull-right"
+    >Save payment method {{icon('caret-right')}}</button>
+  </div>
+
+  <div class="col-md-5 products">
+    <div class="product">
+      <h3>{{sub.product.name}}</h3>
+      <p class="desc">
+        Includes access to all features.
+      </p>
+    </div>
+
+    <div>
+      {{icon('exclamation-circle')}} <strong>Important notices</strong>
+      <ul>
+        <li>
+          At the end of your selected term, your renewal payment will be
+          automatically charged to the payment method you have on file. You can
+          cancel automatic renewal at any time.
+        </li>
+        <li>
+          In accordance with European regulations, your billing records are
+          retained for up to 7 years, even if you delete your account.
+        </li>
+        <li>
+          See the
+          <a
+            href="https://man.sr.ht/terms.md"
+            target="_blank"
+          >terms of service</a> for
+          more details.
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

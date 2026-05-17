@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>Confirm your {{cfg("sr.ht", "site-name")}} account</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8">
+    <h3>
+      You're good to go
+    </h3>
+    <p>
+      Your {{cfg("sr.ht", "site-name")}} account has already been confirmed.
+    </p>
+    <a href="{{redir}}" class="btn btn-primary">
+      Continue {{icon('caret-right')}}
+    </a>
+  </div>
+</div>
+{% endblock %}

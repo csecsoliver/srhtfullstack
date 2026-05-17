@@ -1,0 +1,89 @@
+{% extends "resource-new.html" %}
+{% block title %}
+<title>New {{vcs}} repository - {{project.name}}</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-lg-8">
+    <h3>Create a new {{vcs}} repository</h3>
+  </div>
+</div>
+<form method="POST" class="row">
+  {{csrf_token()}}
+  <div class="col-lg-6">
+    <div class="form-group">
+      <label for="{{ typename }}">Name</label>
+      <input
+        type="text"
+        name="name"
+        id="name"
+        class="form-control {{ valid.cls("name") }}"
+        value="{{ name or project.name }}" />
+      {{ valid.summary("name") }}
+      <div class="form-group">
+        <label for="description">Description</label>
+        <input
+          type="text"
+          name="description"
+          id="description"
+          class="form-control {{valid.cls("description")}}"
+          value="{{ description or project.description }}" />
+        {{valid.summary("description")}}
+      </div>
+      {{valid.summary()}}
+    </div>
+    <button type="submit" class="btn btn-primary" name="create">
+      Create new {{vcs}} repository {{ icon("caret-right") }}
+    </button>
+  </div>
+</form>
+{% if any(repos) or search %}
+<div class="row">
+  <div class="col-lg-8">
+    <h3 style="margin-top: 1rem">
+      Or add an existing {{vcs}} repository
+    </h3>
+    {# TODO: Pagination #}
+    <form class="form-group" method="POST">
+      {{csrf_token()}}
+      <input
+        name="search"
+        type="text"
+        placeholder="Search repositories"
+        class="form-control{% if search_error %} is-invalid{% endif %}"
+        value="{{ search if search else "" }}" />
+      {% if search_error %}
+        <div class="invalid-feedback">{{ search_error }}</div>
+      {% endif %}
+    </form>
+    <form method="POST" class="event-list select-resource">
+      {{csrf_token()}}
+      {% for repo in repos %}
+      <div class="event">
+        <h3>
+          {% if repo["id"] in existing %}
+          <button
+            type="submit"
+            class="pull-right btn btn-primary btn-lg"
+            disabled
+          >Already added&nbsp;{{ icon("caret-right") }}</button>
+          {% else %}
+          <button
+            type="submit"
+            name="existing-{{ repo["rid"] }}"
+            class="pull-right btn btn-primary btn-lg"
+          >Select repo&nbsp;{{ icon("caret-right") }}</button>
+          {% endif %}
+          <a
+            href="{{origin}}/{{ repo["owner"]["canonical_name"] }}/{{repo["name"]}}"
+            target="_blank"
+            rel="noopener"
+          >{{ repo["name"] }}</a>
+        </h3>
+      </div>
+      {% endfor %}
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

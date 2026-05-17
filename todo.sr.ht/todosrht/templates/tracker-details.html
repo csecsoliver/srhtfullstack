@@ -1,0 +1,106 @@
+{% extends "settings.html" %}
+{% block title %}
+<title>Configure {{tracker.owner}}/{{tracker.name}} &mdash; {{ cfg("sr.ht", "site-name") }}</title>
+{% endblock %}
+{% block content %}
+<form class="row" method="POST">
+  {{csrf_token()}}
+  <div class="col-md-6">
+    <div class="form-group {{valid.cls("name")}}">
+      <label class="d-block" for="tracker_name">
+        Tracker Name
+        <a
+          href="/{{ tracker.owner.canonical_name }}/{{ tracker.name }}/settings/rename"
+          class="pull-right"
+        >Rename?</a>
+      </label>
+      <input
+        type="text"
+        dir="auto"
+        name="name"
+        id="name"
+        class="form-control"
+        value="{{ tracker.name }}"
+        disabled />
+      {{ valid.summary("name") }}
+    </div>
+    <div class="form-group {{valid.cls("description")}}">
+      <label for="description">Description</label>
+      <textarea
+        dir="auto"
+        name="description"
+        id="description"
+        class="form-control"
+        rows="5"
+        placeholder="Markdown supported"
+      >{{tracker.description}}</textarea>
+      {{ valid.summary("description") }}
+    </div>
+    {{ valid.summary() }}
+    <span class="pull-right">
+      <button type="submit" class="btn btn-primary">
+        Save {{icon("caret-right")}}
+      </button>
+    </span>
+  </div>
+  <div class="col-md-6 d-flex flex-column">
+    <fieldset class="form-group">
+      <legend>Tracker Visibility</legend>
+      <div class="form-check">
+        <label class="form-check-label">
+          <input
+            class="form-check-input"
+            type="radio"
+            name="visibility"
+            value="PUBLIC"
+            {% if tracker.visibility.value == "PUBLIC" %}
+            checked
+            {% endif %}
+            > Public
+          <small id="visibility-public-help" class="form-text text-muted">
+            Shown on your profile page
+          </small>
+        </label>
+      </div>
+      <div class="form-check">
+        <label
+            class="form-check-label"
+            title="Visible to anyone with the link, but not shown on your profile"
+          >
+          <input
+            class="form-check-input"
+            type="radio"
+            name="visibility"
+            value="UNLISTED"
+            {% if tracker.visibility.value == "UNLISTED" %}
+            checked
+            {% endif %}
+            > Unlisted
+          <small id="visibility-unlisted-help" class="form-text text-muted">
+            Visible to anyone who knows the URL, but not shown on your profile
+          </small>
+        </label>
+      </div>
+      <div class="form-check">
+        <label
+          class="form-check-label"
+          title="Only visible to you and your collaborators"
+        >
+          <input
+            class="form-check-input"
+            type="radio"
+            name="visibility"
+            value="PRIVATE"
+            {% if tracker.visibility.value == "PRIVATE" %}
+            checked
+            {% endif %}
+            > Private
+          <small id="visibility-unlisted-help" class="form-text text-muted">
+            Only visible to you and your collaborators
+          </small>
+        </label>
+      </div>
+    </fieldset>
+  </div>
+</form>
+{% endblock %}

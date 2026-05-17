@@ -1,0 +1,115 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-4">
+      <p>
+        The content for each wiki is managed by a git.sr.ht repository. You can
+        either create a new repo or choose an existing repo. A ref will also be
+        needed. This can either be an existing head (if there are any), or you
+        may optionally push to a new branch.
+      </p>
+    </div>
+    <div class="col-md-8">
+      <h3>Create a new {{ typename_pretty }}</h3>
+        <form method="POST" action="/wiki/create/{{ typename }}/new">
+          {{csrf_token()}}
+          <div class="form-group">
+            <label for="{{ typename }}">Name</label>
+            <input
+              type="text"
+              name="{{ typename }}"
+              id="name"
+              class="form-control {{ valid.cls(typename) }}"
+              value="{{ default or "" }}" />
+            {{ valid.summary(typename) }}
+          </div>
+
+          {% if typename == "repo" %}
+          <fieldset class="form-group">
+            <legend>Visibility</legend>
+            <div class="form-check form-check-inline">
+              <label
+                class="form-check-label"
+                title="Publically visible and listed on your profile"
+              >
+                <input {{ "checked" if default_visibility == Visibility.PUBLIC }}
+                  class="form-check-input"
+                  type="radio"
+                  name="visibility"
+                  value="PUBLIC"> Public
+              </label>
+            </div>
+            <div class="form-check form-check-inline">
+              <label
+                  class="form-check-label"
+                  title="Visible to anyone with the link, but not shown on your profile"
+              >
+                <input {{ "checked" if default_visibility == Visibility.UNLISTED }}
+                  class="form-check-input"
+                  type="radio"
+                  name="visibility"
+                  value="UNLISTED"> Unlisted
+              </label>
+            </div>
+            <div class="form-check form-check-inline">
+              <label
+                class="form-check-label"
+                title="Only visible to you and your collaborators"
+              >
+                <input {{ "checked" if default_visibility == Visibility.PRIVATE }}
+                  class="form-check-input"
+                  type="radio"
+                  name="visibility"
+                  value="PRIVATE"> Private
+              </label>
+            </div>
+          </fieldset>
+          {% endif %}
+
+          <button type="submit" class="btn btn-primary">
+            Create {{ typename_pretty }} {{ icon("caret-right") }}
+          </button>
+        </form>
+      {% if items %}
+      <h3>Or choose an existing {{ typename_pretty }}</h3>
+        <form>
+          <input
+            name="search"
+            type="text"
+            placeholder="Search your {{ typename_pretty }}s"
+            class="form-control"
+            value="{{ search if search else "" }}" />
+        </form>
+
+        <div class="event-list configure">
+        {% for item in items %}
+          <form class="event" method="POST" action="/wiki/create/{{ typename }}">
+            {{csrf_token()}}
+            <input type="hidden" name="{{ typename }}" value="{{ item.name }}" />
+            <h4>
+              <a
+                href="{{ item.url }}"
+                target="_blank"
+                rel="noopener"
+              >{{ item.name }}</a>
+            </h4>
+            {% if typename != "repo" or item.name not in existing %}
+            <button
+              type="submit"
+              class="btn btn-primary btn-lg"
+            >Select {{ typename_pretty }} {{ icon("caret-right") }}</button>
+            {% else %}
+            <button
+              class="pull-right btn btn-default btn-lg"
+              disabled
+            >Already created</button>
+            {% endif %}
+          </form>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

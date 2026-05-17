@@ -1,0 +1,15 @@
+[tool.ariadne-codegen]
+async_client = false
+client_name = "BuildsClient"
+schema_path = "@ASSETS@/builds.sr.ht.graphqls"
+queries_path = "hubsrht/services/builds/"
+target_package_path = "hubsrht/services/"
+target_package_name = "builds"
+plugins = ["srht.ariadne.AriadnePlugin"]
+
+[tool.ariadne-codegen.sourcehut]
+service_name = "builds.sr.ht"
+
+[tool.ariadne-codegen.scalars.Time]
+type = "datetime.datetime"
+parse = "srht.graphql.gql_time"

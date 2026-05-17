@@ -1,0 +1,32 @@
+{% extends "settings.html" %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-6">
+    <h3>Rename Repository</h3>
+    <form method="POST">
+      {{csrf_token()}}
+      <div class="form-group">
+        <label for="name" class="d-block">
+          New issue tracker name:
+        </label>
+        <input
+          type="text"
+          class="form-control {{valid.cls('name')}}"
+          id="name"
+          name="name"
+          value="{{name or tracker.name}}" />
+        {{valid.summary('name')}}
+      </div>
+      <p>
+        This will change the canonical URL of your tracker. A redirect from
+        the old URL to the new one will be in place until you create another
+        tracker with the same name.
+      </p>
+      <button type="submit" class="btn btn-primary pull-right">
+        Rename tracker {{icon("caret-right")}}
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

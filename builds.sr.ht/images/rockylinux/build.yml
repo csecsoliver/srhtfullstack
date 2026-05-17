@@ -1,0 +1,44 @@
+image: rockylinux/8
+packages:
+  - e2fsprogs
+  - qemu-kvm
+  - qemu-img
+  - rsync
+sources:
+  - https://git.sr.ht/~sircmpwn/builds.sr.ht
+environment:
+  arch: x86_64
+  release: "8"
+  slaves:
+    - deploy@fra01.builds.sr.ht
+    - deploy@fra02.builds.sr.ht
+    - deploy@rsync.builds.sr.ht
+secrets:
+  - fa00a8d3-7b63-42d5-8060-3bb31c3e3018
+triggers:
+  - action: email
+    condition: failure
+    to: ~sircmpwn/sr.ht-image-failures@lists.sr.ht
+    cc: Haowen Liu <lhw@lunacd.com>
+tasks:
+  - genimg: |
+      cd builds.sr.ht
+      cd images/rockylinux/$release
+      sudo ./genimg $arch
+  - sanity-check: |
+      cd builds.sr.ht
+      sudo chown build:build /dev/kvm
+      MEMORY=1024 PATH=$PATH:/usr/libexec ./images/control rockylinux/$release sanity-check
+  - deploy: |
+      cd builds.sr.ht/images/rockylinux/$release
+      echo "StrictHostKeyChecking=no" >>~/.ssh/config
+      chmod 600 ~/.ssh/config
+      for server in "${slaves[@]}"
+      do
+        ssh $server mkdir -p /var/lib/images/rockylinux/$release/$arch
+        rsync -rzP $arch/root.img.qcow2 \
+          ${server}:/var/lib/images/rockylinux/$release/$arch/new_root.img.qcow2
+        ssh $server \
+          mv /var/lib/images/rockylinux/$release/$arch/new_root.img.qcow2 \
+             /var/lib/images/rockylinux/$release/$arch/root.img.qcow2
+      done

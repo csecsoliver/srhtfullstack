@@ -1,0 +1,53 @@
+mutation CreateRepository(
+  $name: String!,
+  $visibility: Visibility!,
+  $description: String,
+) {
+  repository: createRepository(
+    name: $name,
+    visibility: $visibility,
+    description: $description
+  ) {
+    name
+  }
+}
+
+mutation CloneRepository(
+  $cloneUrl: String!,
+  $name: String!,
+  $visibility: Visibility!,
+  $description: String,
+) {
+  repository: createRepository(
+    name: $name,
+    visibility: $visibility,
+    description: $description,
+    cloneUrl: $cloneUrl,
+  ) {
+    name
+  }
+}
+
+mutation RenameRepository($id: Int!, $name: String!) {
+  repository: updateRepository(id: $id, input: {name: $name}) {
+    name
+  }
+}
+
+mutation UpdateRepository($id: Int!, $input: RepoInput!) {
+  updateRepository(id: $id, input: $input) { id }
+}
+
+mutation DeleteRepository($id: Int!) {
+  repository: deleteRepository(id: $id) {
+    id
+    name
+    owner {
+      canonicalName
+
+      ... on User {
+        username
+      }
+    }
+  }
+}

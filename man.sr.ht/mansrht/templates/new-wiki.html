@@ -1,0 +1,49 @@
+{% extends "man.html" %}
+{% set clone_urls = git_clone_urls(repo) %}
+{% set web_url = git_repo_url(repo) %}
+{% block content %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-8">
+      <h1>index</h1>
+      <p>
+        Your wiki has been created, but does not have any content. To add
+        content, push commits to the <strong>{{wiki.repo_ref}}</strong> branch
+        of
+        <a
+          href="{{web_url}}"
+        >{{wiki.owner.canonical_name}}/{{wiki.repo_name}}</a>:
+        <code class="grey">{{clone_urls.ssh}}</code>
+      </p>
+      {% if wiki.repo_ref != "master" %}
+      <pre>git clone {{clone_urls.ssh}} &amp;&amp; cd {{wiki.repo_name}}
+git checkout --orphan {{wiki.repo_ref}}
+git rm -rf *
+echo "Hello world!" &gt;index.md
+git add index.md
+git commit -m"Initial wiki commit"
+git push -u origin {{wiki.repo_ref}}</pre>
+      {% else %}
+      <pre>git clone {{clone_urls.ssh}} &amp;&amp; cd {{wiki.repo_name}}
+echo "Hello world!" &gt;index.md
+git add index.md
+git commit -m"Initial wiki commit"
+git push -u origin master</pre>
+      {% endif %}
+      <p>
+        For more information, consult the
+        <a href="https://man.sr.ht/man.sr.ht/">documentation</a>.
+      </p>
+    </div>
+    <div class="col-md-8">
+      {% if wiki.owner.username == current_user.username %}
+        <a
+          href="{{ url_for("manage.info",
+            owner_name=wiki.owner.canonical_name, wiki_name=wiki.name) }}"
+          class="btn btn-default btn-block"
+        >Settings for this wiki {{icon('caret-right')}}</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

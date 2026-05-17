@@ -1,0 +1,188 @@
+{% extends "meta.html" %}
+{% from "partials/product-list.html" import product_list %}
+
+{% block title %}
+<title>Billing setup - {{cfg("sr.ht", "site-name")}}</title>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const products = [
+  {% for product in products %}
+  {
+    id: {{product.id}},
+    prices: {
+      {% for price in product.prices %}
+      "{{price.currency.value}}": {{price.amount}},
+      {% endfor %}
+    },
+  },
+  {% endfor %}
+];
+let currency = "{{currencies[0].value if currencies else "EUR"}}";
+</script>
+<script src="/static/meta.sr.ht/billing-setup.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    {% if message %}
+    <div class="alert alert-danger">{{message}}</div>
+    {% endif %}
+
+    <p>
+      All users who host projects on SourceHut are expected to pay according
+      to their means. Please choose the subscription plan most appropriate
+      to your means &mdash; there is no difference between the
+      subscriptions besides price.
+      <a href="https://man.sr.ht/billing-faq.md">Learn more {{icon('caret-right')}}</a>
+    </p>
+
+    {% if user.payment_status == PaymentStatus.SUBSIDIZED %}
+    <div class="alert alert-warning">
+      <strong>Notice:</strong> Your account is currently subsidized. Your free
+      service is valid until {{user.payment_due.strftime("%B %d, %Y")}}, after
+      which point you may apply for financial support again if needed. You may
+      also set up a normal, non-subsidized paid subscription here if you wish.
+    </div>
+    {% elif user.payment_status == PaymentStatus.FREE %}
+    <div class="alert alert-warning">
+      <strong>Notice:</strong> Your account receives paid services for free.
+      You may elect to sign up for a paid account anyway, but you will not be
+      able to return to a free account.
+    </div>
+    {% endif %}
+
+    {% if len(user.invoices.results) != 0 %}
+    <div class="alert alert-warning">
+      {{icon('question-circle')}} <strong>Looking for your past invoices?</strong>
+      <a href="{{url_for("billing.invoices_GET")}}">Browse them here {{icon('caret-right')}}</a>
+    </div>
+    {% endif %}
+
+    <noscript>
+      <div class="alert alert-danger">
+        {{icon('exclamation-triangle')}} <strong>Error:</strong>
+        Our third-party payment processor requires JavaScript to be enabled to
+        function. We apologize for the inconvenience. Please enable JavaScript
+        to proceed. If you are unable or unwilling to enable JavaScript you may
+        <a
+          href="mailto:{{cfg('sr.ht', 'owner-email')}}"
+        >request financial aid</a> on this basis.
+      </div>
+    </noscript>
+  </div>
+</div>
+
+<div class="noscript-hidden">
+  <form class="row" method="POST">
+    {{csrf_token()}}
+    <div class="col-md-7">
+      <h3>Billing address</h3>
+      {% set address = user.billing_address %}
+      {% include "partials/edit-address.html" %}
+      <div class="alert alert-success">
+        {{icon('question-circle')}}
+        Your billing address is used to calculate taxes and prepare invoices.
+      </div>
+    </div>
+
+    <div class="col-md-5 products hide-subsidized">
+      {% if len(currencies) > 1 %}
+      <div class="form-group">
+        <label for="currency">Show prices in:</label>
+        <select id="currency" name="currency" class="form-control">
+          {% for currency in currencies %}
+          <option
+            value="{{currency.value}}"
+            {% if loop.first %}
+            selected
+            {% endif %}
+          >
+            {{CURRENCY_NAMES[currency]}}
+            ({{CURRENCY_SYMBOLS[currency]}})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <input type="hidden" name="currency" value="{{currencies[0].value if currencies else "EUR"}}" />
+      {% endif %}
+
+      {{ product_list(cfg, products, show_subsidized=True) }}
+
+      <fieldset class="form-group payment-interval show-after-selection d-none">
+        <legend>Choose a billing interval</legend>
+        <div class="form-check">
+          <label class="form-check-label">
+            <input
+              class="form-check-input"
+              type="radio"
+              name="interval"
+              value="MONTHLY"
+              checked
+              > <span id="price-monthly">$X</span>/month
+              <small class="text-muted">+ tax</small>
+            <small class="form-text text-muted">
+              Normal pricing for monthly subscriptions
+            </small>
+          </label>
+        </div>
+        <div class="form-check">
+          <label class="form-check-label">
+            <input
+              class="form-check-input"
+              type="radio"
+              name="interval"
+              value="ANNUALLY"
+              > <span id="price-annually">$X</span>/year
+              <small class="text-muted">+ tax</small>
+            <small class="form-text text-muted">
+              2 free months when paid annually
+            </small>
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="form-group show-after-selection d-none">
+        <button class="btn btn-primary" type="submit">
+          Continue to payment details {{icon('caret-right')}}
+        </button>
+      </div>
+
+    </div>
+  </form>
+
+  <div class="row" style="margin-top: 1rem">
+    <div class="col-md-8 offset-md-2">
+      {{icon('exclamation-circle')}} <strong>Important notices</strong>
+      <ul>
+        <li>
+          Prices shown do not include applicable taxes. If applicable, taxes
+          are calculated and shown after collecting your billing address.
+        </li>
+        <li>
+          Proceeding to the next page will execute non-free JavaScript code from
+          our payment processor. If you do not wish to run non-free code to
+          process your payment, please apply for financial aid on this basis.
+        </li>
+        <li>
+          At the end of your selected term, your renewal payment will be
+          automatically charged to the payment method you have on file. You can
+          cancel automatic renewal at any time.
+        </li>
+        <li>
+          In accordance with European regulations, your billing records are
+          retained for up to 7 years, even if you delete your account.
+        </li>
+        <li>
+          See the <a href="https://man.sr.ht/terms.md">terms of service</a> for
+          more details.
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,7 @@
+#!/bin/sh -eu
+client=$1
+echo hubsrht/services/$client/*.py \
+	| tr ' ' '\n' \
+	| grep -v webhooks.py \
+	| xargs rm -f
+rm -rf hubsrht/services/$client/__pycache__

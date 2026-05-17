@@ -1,0 +1,148 @@
+#!/bin/sh -eux
+: "$netbsd_dist"
+: "$netbsd_suffix"
+: "$pkgin_dist"
+
+arch="${1:-amd64}"
+sets="base comp etc kern-GENERIC man xbase xcomp"
+
+# Functions
+cleanup() {
+	sync || true
+	umount -R /mnt/kern || true
+	umount -R /mnt/proc || true
+	umount -R /mnt/tmp || true
+	umount /mnt || true
+	vndconfig -u vnd0 || true
+}
+
+run_root() {
+	chroot /mnt /usr/bin/env \
+		PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/pkg/bin:/usr/pkg/sbin \
+		/bin/sh -c "$*"
+}
+
+trap cleanup EXIT
+
+mkdir -p workdir "$arch"
+
+# Create raw image in workdir
+qemu-img create -f raw workdir/wd0.img 16G
+
+# Virtual Disk
+vndconfig -c vnd0 workdir/wd0.img
+
+# MBR partition creation
+fdisk -fiau0 -s 169/63 vnd0
+printf 'a\nunused\n\n0\nW\ny\nQ\n' | disklabel -i vnd0
+mbrlabel -wr vnd0
+root_disk=vnd0a
+
+# Create file system
+newfs -O 2 "$root_disk"
+
+# Prepare and mount destination
+mount "/dev/$root_disk" /mnt
+mkdir /mnt/kern /mnt/proc /mnt/tmp /mnt/var
+
+# Download and extract sets
+for set in $sets
+do
+	if ! [ -e "workdir/$set.$netbsd_suffix" ]
+	then
+		ftp -o "workdir/$set.$netbsd_suffix" "$netbsd_dist/binary/sets/$set.$netbsd_suffix"
+	fi
+	tar -C /mnt --chroot -xpf "workdir/$set.$netbsd_suffix"
+done
+
+# MAKEDEV
+( cd /mnt/dev && sh MAKEDEV all )
+mount -t null /kern /mnt/kern
+mount -t null /proc /mnt/proc
+mount -t null /tmp /mnt/tmp
+
+# fstab
+cat <<EOF >/mnt/etc/fstab
+/dev/ld0a	/		ffs	rw		1 1
+kernfs		/kern		kernfs	rw
+ptyfs		/dev/pts	ptyfs	rw
+procfs		/proc		procfs	rw
+tmpfs		/var/shm	tmpfs	rw,-m1777,-sram%25
+EOF
+
+# Install and config loader
+cp /mnt/usr/mdec/boot /mnt/boot
+installboot -o timeout=0 "/dev/$root_disk" /mnt/usr/mdec/bootxx_ffsv2
+sed -e 's/^timeout=.*/timeout=0/' -i /mnt/boot.cfg
+
+# Create build user
+run_root useradd -G wheel,wsrc build
+run_root chpass -a 'build::1000:100::0:0::/home/build:/bin/ksh'
+mkdir -p /mnt/home/build
+cat <<EOF >/mnt/home/build/.gitconfig
+[user]
+name = builds.sr.ht
+email = builds@sr.ht
+EOF
+run_root chown -R build:users /home/build
+
+# Network and boot config
+cat <<EOF >/mnt/etc/resolv.conf
+nameserver 8.8.8.8
+nameserver 9.9.9.9
+nameserver 1.1.1.1
+EOF
+cat <<EOF >/mnt/etc/ifconfig.vioif0
+up
+10.0.2.15 netmask 255.255.255.0
+EOF
+
+# Modify ssh configuration
+sed -e 's/#PermitEmptyPasswords no/PermitEmptyPasswords yes/' \
+    -e 's/UsePAM yes/UsePAM no/i' \
+	-i /mnt/etc/ssh/sshd_config
+
+# Modify rc.conf
+cat <<EOF >>/mnt/etc/rc.conf
+hostname=build
+defaultroute="10.0.2.2"
+no_swap=YES
+postfix=NO
+sshd=YES
+ntpd=YES
+EOF
+sed -e 's/^rc_configured=NO/rc_configured=YES/' \
+	-i /mnt/etc/rc.conf
+
+# NB: Use HTTP to obtain latest root certificates to prevent connection
+# errors.
+run_root PKG_PATH="http://$pkgin_dist" pkg_add "pkgin"
+echo "http://$pkgin_dist" > /mnt/usr/pkg/etc/pkgin/repositories.conf
+run_root pkgin -y update
+run_root pkgin -y install mozilla-rootcerts
+run_root mozilla-rootcerts install
+# Now we can rely on HTTPS
+echo "https://$pkgin_dist" > /mnt/usr/pkg/etc/pkgin/repositories.conf
+# TODO: Remove bash
+run_root pkgin -y install sudo gnupg git-base mercurial \
+	moreutils bash
+run_root pkgin clean
+
+cat <<EOF >/mnt/etc/login.conf
+default:\
+	:path=/bin /sbin /usr/bin /usr/sbin /usr/pkg/bin /usr/pkg/sbin /usr/local/bin /usr/local/sbin:
+EOF
+
+cat <<EOF >/mnt/usr/pkg/etc/sudoers
+root ALL=(ALL) ALL
+%wheel ALL=(ALL) NOPASSWD: ALL
+EOF
+
+rm /mnt/etc/motd
+touch /mnt/firstboot
+
+cleanup
+trap - EXIT
+
+qemu-img convert -f raw -O qcow2 workdir/wd0.img "$arch/root.img.qcow2"
+rm workdir/wd0.img

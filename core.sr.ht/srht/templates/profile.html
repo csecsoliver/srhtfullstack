@@ -1,0 +1,107 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>{{user.canonical_name}}</title>
+{% endblock %}
+
+{% block body %}
+<div class="header-tabbed">
+  <div class="container">
+    {% block tabs %}
+    {% macro link(path, title, alternates=[]) %}
+    <a
+      class="nav-link {% if view == title or view in alternates %}active{% endif %}"
+      href="{{ path }}">{{ title }}</a>
+    {% endmacro %}
+    <h2>
+      {{user.canonical_name}}
+      {% if profile.pronouns %}
+      <small>({{profile.pronouns}})</small>
+      {% endif %}
+    </h2>
+    <ul class="nav nav-tabs">
+      {% with hub = get_origin("hub.sr.ht", external=True, default=None) %}
+      {% if hub %}
+      <li class="nav-item">
+        {{link(hub + "/" + user.canonical_name, "about")}}
+      </li>
+
+      <li class="nav-item">
+        {{link(hub + "/projects/" + user.canonical_name, "projects")}}
+      </li>
+      {% endif %}
+      {% endwith %}
+
+      {% with git = get_origin("git.sr.ht", external=True, default=None) %}
+      {% if git %}
+      <li class="nav-item">
+        {{link(git + "/" + user.canonical_name, "git")}}
+      </li>
+      {% endif %}
+      {% endwith %}
+
+      {% with hg = get_origin("hg.sr.ht", external=True, default=None) %}
+      {% if hg %}
+      <li class="nav-item">
+        {{link(hg + "/" + user.canonical_name, "hg")}}
+      </li>
+      {% endif %}
+      {% endwith %}
+
+      {% with lists = get_origin("lists.sr.ht", external=True, default=None) %}
+      {% if lists %}
+      <li class="nav-item">
+        {{link(lists + "/" + user.canonical_name, "lists")}}
+      </li>
+      {% endif %}
+      {% endwith %}
+
+      {% with todo = get_origin("todo.sr.ht", external=True, default=None) %}
+      {% if todo %}
+      <li class="nav-item">
+        {{link(todo + "/" + user.canonical_name, "todo")}}
+      </li>
+      {% endif %}
+      {% endwith %}
+    </ul>
+  </div>
+  {% endblock %}
+</div>
+
+<div class="container">
+  {% block profile %}
+  <div class="row">
+    <div class="col-md-3 profile">
+      {% if profile.avatar %}
+      <img
+        src="{{profile.avatar}}"
+        alt="{{user.username}}'s avatar"
+        class="avatar"
+      />
+      {% endif %}
+
+      {% if profile.location %}
+      <p>{{profile.location}}</p>
+      {% endif %}
+
+      {% if profile.url %}
+      <p>
+        <a
+          href="{{profile.url}}"
+          target="_blank"
+          rel="me noopener noreferrer nofollow"
+        >{{profile.url}}</a>
+      </p>
+      {% endif %}
+
+      {% block sidebar %}
+      {% endblock %}
+    </div>
+
+    <div class="col-md-9">
+      {% block content %}
+      {% endblock %}
+    </div>
+  </div>
+  {% endblock %}
+</div>
+{% endblock %}

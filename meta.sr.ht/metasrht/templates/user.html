@@ -1,0 +1,524 @@
+{% extends "meta.html" %}
+{% import "partials/invoice.html" as invoice %}
+
+{% block title %}
+<title>~{{user.username}} - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+
+{% block content %}
+<h3>~{{user.username}}</h3>
+
+<div class="alert alert-danger">
+  <strong>{{icon('exclamation-circle')}} Notice</strong>:
+  This page contains private user information.
+</div>
+
+<div class="row">
+  <section class="col-md-12">
+    <dl class="row">
+      <dt class="col-md-3">User ID</dt>
+      <dd class="col-md-9">{{user.id}}</dd>
+      <dt class="col-md-3">Email</dt>
+      <dd class="col-md-9">
+        <a href="mailto:{{user.email}}">{{user.email}}</a>
+      </dd>
+      <dt class="col-md-3">Registered</dt>
+      <dd class="col-md-9">{{user.created | date}}</dd>
+      <dt class="col-md-3">User type</dt>
+      <dd class="col-md-9">{{user.user_type.value}}</dd>
+      {% if user.user_type.value == "SUSPENDED" %}
+      <dt class="col-md-3">Suspension Notice</dt>
+      <dd class="col-md-9">{{user.suspension_notice}}</dd>
+      {% endif %}
+      <dt class="col-md-3">Payment status</dt>
+      <dd class="col-md-9">{{user.payment_status.value}}</dd>
+
+      {% if user.location %}
+      <dt class="col-md-3">Location</dt>
+      <dd class="col-md-9">{{user.location}}</dd>
+      {% endif %}
+      {% if user.url %}
+      <dt class="col-md-3">URL</dt>
+      <dd class="col-md-9">
+        <a
+          href="{{user.url}}"
+          target="_blank"
+          rel="me noopener noreferrer nofollow"
+        >{{user.url}}</a>
+      </dd>
+      {% endif %}
+
+      {% if sub %}
+      <dt class="col-md-3">Payment amount</dt>
+      <dd class="col-md-9">
+        {{CURRENCY_SYMBOLS[sub.currency]}}{{"{:.2f}".format(sub.subtotal / 100)}}
+      </dd>
+      <dt class="col-md-3">Payment interval</dt>
+      <dd class="col-md-9">
+        {{sub.interval}}
+      </dd>
+      {% endif %}
+
+      {% if user.payment_due %}
+      <dt class="col-md-3">Payment due</dt>
+      <dd class="col-md-9">{{user.payment_due | date}}</dd>
+      {% endif %}
+
+      <dt class="col-md-3">Quick links</dt>
+      <dd class="col-md-9">
+        {% if get_origin("hub.sr.ht", default=None) %}
+        <a href="{{get_origin("hub.sr.ht")}}/~{{user.username}}">hub</a>
+        {% endif %}
+        {% if get_origin("git.sr.ht", default=None) %}
+        <a href="{{get_origin("git.sr.ht")}}/~{{user.username}}">git</a>
+        {% endif %}
+        {% if get_origin("hg.sr.ht", default=None) %}
+        <a href="{{get_origin("hg.sr.ht")}}/~{{user.username}}">hg</a>
+        {% endif %}
+        {% if get_origin("lists.sr.ht", default=None) %}
+        <a href="{{get_origin("lists.sr.ht")}}/~{{user.username}}">lists</a>
+        {% endif %}
+        {% if get_origin("todo.sr.ht", default=None) %}
+        <a href="{{get_origin("todo.sr.ht")}}/~{{user.username}}">todo</a>
+        {% endif %}
+        {% if get_origin("man.sr.ht", default=None) %}
+        <a href="{{get_origin("man.sr.ht")}}/~{{user.username}}">man</a>
+        {% endif %}
+        {% if get_origin("paste.sr.ht", default=None) %}
+        <a href="{{get_origin("paste.sr.ht")}}/~{{user.username}}">paste</a>
+        {% endif %}
+      </dd>
+    </dl>
+
+    <div class="row">
+      <div class="col-md-10">
+        {% if user.bio %}
+        <blockquote>
+          {{user.bio | md}}
+        </blockquote>
+        {% endif %}
+      </div>
+      <form
+        class="col-md-2"
+          method="POST"
+          action="{{url_for("users.user_suspend", username=user.username)}}"
+        >
+          {{csrf_token()}}
+          <div class="form-group">
+            <input
+              type="hidden"
+              name="reason"
+              value="Spam" />
+          </div>
+          <button type="submit" class="btn btn-danger btn-block">
+            Mark as spam {{icon('caret-right')}}
+          </button>
+      </form>
+    </div>
+
+    <form
+      method="POST"
+      action="{{url_for("users.set_user_type", username=user.username)}}"
+      class="row"
+    >
+      {{csrf_token()}}
+      <div class="col-md-3">
+        <select
+          name="user_type"
+          class="form-control"
+        >
+          {% for type in [ "PENDING", "USER", "ADMIN" ] %}
+            <option
+              value="{{type}}"
+              {% if user.user_type.value == type %}
+              selected
+              {% endif %}
+            >{{type}}</option>
+          {% endfor %}
+          {% if user.user_type.value == "SUSPENDED" %}
+            {# You can remove this here, but not set it #}
+            <option value="SUSPENDED" selected>SUSPENDED</option>
+          {% endif %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button
+          type="submit"
+          class="btn btn-primary btn-block"
+        >Update {{icon('caret-right')}}</button>
+      </div>
+    </form>
+
+    {% if totp %}
+    <form
+      method="POST"
+      action="{{url_for("users.user_disable_totp", username=user.username)}}"
+    >
+      {{csrf_token()}}
+      <button type="submit" class="btn btn-link pull-right">
+        Disable TOTP
+      </button>
+      This account has TOTP enabled.
+    </form>
+    {% endif %}
+
+    <form
+      method="POST"
+      action="{{url_for("users.user_delete_POST", username=user.username)}}"
+      class="alert alert-warning"
+    >
+      {{csrf_token()}}
+      Check both boxes to delete this account:
+      <button type="submit" class="btn btn-danger pull-right">
+        Delete account {{icon('caret-right')}}
+      </button>
+      <input type="checkbox" id="safe-1" name="safe-1">
+      <label class="form-check-label" for="safe-1">
+        Confirm once
+      </label>
+      <input type="checkbox" id="safe-2" name="safe-2">
+      <label class="form-check-label" for="safe-2">
+        Confirm twice
+      </label>
+    </form>
+  </section>
+</div>
+
+<div class="row">
+  <form
+    class="col-md-12"
+    action="{{url_for('.user_add_note', username=user.username)}}"
+    method="POST"
+  >
+    <h3>User notes</h3>
+    <div class="event-list">
+      {% for note in user.notes %}
+      <div class="event">
+        {{note.note}}
+        <span class="text-muted">{{note.created | date}}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="form-group">
+      <textarea
+        id="notes"
+        name="notes"
+        class="form-control {{valid.cls('notes')}}"
+        rows="3"
+      >{{notes if notes else ""}}</textarea>
+      {{valid.summary('notes')}}
+    </div>
+    {{csrf_token()}}
+    <button type="submit" class="btn btn-primary pull-right">
+      Add note
+      {{icon('caret-right')}}
+    </button>
+  </form>
+</div>
+
+<div class="row">
+  <form
+    class="col-md-12"
+      method="POST"
+      action="{{url_for("users.user_suspend", username=user.username)}}"
+    >
+      <h3>Suspend account</h3>
+      {{csrf_token()}}
+      <div class="form-group">
+        <input
+          type="text"
+          placeholder="Suspension reason (shown to user)"
+          class="form-control"
+          name="reason" />
+      </div>
+      <button type="submit" class="btn btn-danger pull-right">
+        Suspend user
+        {{icon('caret-right')}}
+      </button>
+  </form>
+</div>
+
+<div class="row">
+  {% if user.payment_status != PaymentStatus.CURRENT %}
+  <form
+    class="col-md-6"
+    method="POST"
+    action="{{url_for("users.user_subsidize", uid=user.id)}}"
+  >
+    <h3>Issue financial aid</h3>
+    {{csrf_token()}}
+    <div class="form-group">
+      <label for="comment">Subsidize services thru</label>
+      <input
+        type="date"
+        class="form-control"
+        name="valid_thru"
+        value="{{one_year.strftime("%Y-%m-%d")}}" />
+    </div>
+    <button type="submit" class="btn btn-primary">
+      Apply {{icon('caret-right')}}
+    </button>
+  </form>
+  {% else %}
+  <form
+    class="col-md-6"
+    action="{{url_for('.user_transfer_billing', from_user=user.username)}}"
+    method="POST"
+  >
+    <h3>Transfer billing information</h3>
+    {{valid.summary('from')}}
+    <div class="form-group">
+      <label for="target">New user</label>
+      <input
+        type="text" 
+        id="to"
+        name="to"
+        class="form-control {{valid.cls('to')}}"
+        value="{{to or "" }}" />
+      {{valid.summary('to')}}
+    </div>
+    {{csrf_token()}}
+    <button type="submit" class="btn btn-primary pull-right">
+      Transfer billing
+      {{icon('caret-right')}}
+    </button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="row">
+  <div class="col-md-12">
+    {% if any(user.ssh_keys) %}
+    <h3>SSH keys</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Fingerprint</th>
+          <th>Authorized</th>
+          <th>Last Used</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in user.ssh_keys %}
+        <tr>
+          <td>{{key.comment}}</td>
+          <td>
+            <details>
+              <summary>{{key.fingerprint_sha256}}</summary>
+              <pre style="max-width: 600px">{{key.key}}</pre>
+            </details>
+          </td>
+          <td>{{key.created|date}}</td>
+          <td>{{key.last_used|date}}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    {% if any(user.pgp_keys) %}
+    <h3>PGP keys</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Fingerprint</th>
+          <th>Authorized</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in user.pgp_keys %}
+        <tr>
+          <td>{{key.id}}</td>
+          <td>
+            <details>
+              <summary>{{key.fingerprint_hex}}</summary>
+              <pre style="max-width: 600px">{{key.key}}</pre>
+            </details>
+          </td>
+          <td>{{key.created|date}}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row">
+  <section class="col-md-12">
+    <h3>Audit Log</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>IP Address</th>
+          <th>Host</th>
+          <th>Details</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in audit_log %}
+        <tr>
+          <td>{{log.ip_address}}</td>
+          <td>{{rdns.get(log.ip_address.exploded, "unknown")}}</td>
+          <td>{{log.details or log.event_type}}</td>
+          <td>{{log.created | date }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+<div class="row">
+  <div class="col-md-12 event-list">
+    <section>
+      <h3>Personal Access Tokens</h3>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Comment</th>
+            <th>Issued</th>
+            <th>Expires</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for token in personal_tokens %}
+          <tr>
+            <td>{{ token.comment }}</td>
+            <td>{{ token.issued | date }}</td>
+            <td>{{ token.expires | date }}</td>
+            <td style="width: 6rem">
+              <a
+                href="{{url_for('oauth2.personal_token_revoke_GET',
+                  token_id=token.id)}}"
+                class="btn btn-danger btn-fill"
+              >Revoke</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h3>Authorized Clients</h3>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Operator</th>
+            <th>Issued</th>
+            <th>Expires</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for grant in oauth_grants %}
+          <tr>
+            <td>
+              {# lol this hack is awful #}
+              <a
+                href="{{grant.client.url}}"
+                rel="noopener"
+              >{{ grant.client.name }}</a>
+              <a
+                href="{{grant.client.url}}"
+                rel="noopener"
+              >{{icon('external-link-alt')}}</a>
+            </td>
+            <td>{{grant.client.owner.canonical_name}}</td>
+            <td>{{grant.issued | date}}</td>
+            <td>{{grant.expires | date}}</td>
+            <td style="width: 6rem">
+              <a
+                href="{{url_for("oauth2.bearer_token_revoke_GET",
+                  token_hash=grant.token_hash)}}"
+                class="btn btn-danger btn-fill"
+              >Revoke</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h3>Registered Clients</h3>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Client ID</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for client in oauth_clients %}
+          <tr>
+            <td>
+              {# lol this hack is awful #}
+              <a
+                href="{{client.url}}"
+                rel="noopener"
+              >{{ client.name }}</a>
+              <a
+                href="{{client.url}}"
+                rel="noopener"
+              >{{icon('external-link-alt')}}</a>
+            </td>
+            <td>{{ client.uuid }}</td>
+            <td style="width: 6rem">
+              <a
+                href="{{url_for('oauth2.manage_client_GET', uuid=client.uuid)}}"
+                class="btn btn-default btn-fill"
+              >Manage {{icon('caret-right')}}</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h3>Invoices</h3>
+      {% if invoices %}
+      <div class="event-list">
+        {% for i in invoices %}
+        {{ invoice.render(i, CURRENCY_SYMBOLS) }}
+        {% endfor %}
+      </div>
+      {% else %}
+      <em>None</em>
+      {% endif %}
+    </section>
+  </div>
+  <form
+    class="col-md-8"
+    action="{{url_for("users.user_impersonate_POST", username=user.username)}}"
+    method="POST"
+  >
+    {{csrf_token()}}
+    <h3>Impersonate user</h3>
+    <div class="form-group">
+      <label for="reason">Reason</label>
+      <input
+        type="text" 
+        class="form-control {{valid.cls('reason')}}"
+        id="reason"
+        name="reason"
+        value="{{reason if reason else ""}}" />
+      {{valid.summary('reason')}}
+    </div>
+    <div class="alert alert-danger">
+      This will send a security notification to the user and the admin security
+      mailing list. You must have the user's permission to use this feature.
+    </div>
+    <button type="submit" class="btn btn-primary">
+      Impersonate this user
+      {{icon('caret-right')}}
+    </button>
+  </form>
+</div>
+{% endblock %}

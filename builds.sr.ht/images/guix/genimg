@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+
+set -euxo pipefail
+
+arch="${1:-x86_64}"
+ssh_opts="-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+
+cleanup() {
+    if [ -e /tmp/qemu.id ]
+    then
+        cid=$(cat /tmp/qemu.id)
+        guest_ssh build@localhost sudo halt || true
+        sleep 5
+        kill $cid || true
+        rm -f /tmp/qemu.id
+    fi
+}
+
+wait_boot() {
+    attempts=0
+    while ! guest_ssh build@localhost true 2>&1 >/dev/null
+    do
+        sleep 5
+        attempts=$((attempts + 1))
+        if [ "$attempts" -eq 20 ]; then
+            exit 1
+        fi
+    done
+}
+
+guest_ssh() {
+    ssh $ssh_opts -p 8022 "$@"
+}
+
+guest_scp() {
+    scp $ssh_opts -P 8022 "$@"
+}
+
+# Update host guix _________________________
+
+# - next lines are redundant with pull in guest guix, and only useful in case
+# the image is not built since a long time, or when current image is
+# problematic
+# - if pulling fails due to an empty manifest, refer to
+#       https://lists.sr.ht/~sircmpwn/sr.ht-dev/patches/56066
+# - failure in image built will produce an email warning admins about
+
+# when pull fails due to remote unreachable, the manifest file is empty, and
+# upcoming pulls give an error; removing current profile gets around this
+# situation
+[[ -s ~/.config/guix/current/manifest ]] || \
+    rm /var/guix/profiles/per-user/build/current-guix
+
+# get latest guix form upstream
+guix pull -v0
+
+# ensure new guix is in use
+GUIX_PROFILE="$HOME/.config/guix/current"
+. "$GUIX_PROFILE/etc/profile"
+hash guix
+
+# ------------------------------------
+
+# Build image
+image=$(guix system image \
+    --verbosity=0 \
+    --image-type=qcow2 \
+    --image-size=16GB \
+    --save-provenance \
+    system.scm)
+
+# Copy the image and make it writable
+mkdir -p "$arch"
+cp $image "$arch/root.img.qcow2"
+chmod u+w "$arch/root.img.qcow2"
+
+trap cleanup EXIT
+
+# Boot guix vm
+qemu-system-$arch \
+    -pidfile /tmp/qemu.id \
+    -m 3046 \
+    -smp cpus=2 \
+    -net nic,model=virtio -net user,hostfwd=tcp:127.0.0.1:8022-:22 \
+    -display none \
+    -device virtio-rng-pci \
+    -device virtio-balloon \
+    -drive file="$arch/root.img.qcow2",media=disk,if=virtio \
+    -cpu host -enable-kvm &
+wait_boot
+
+# Configure git
+guest_ssh build@localhost tee .gitconfig <<EOF
+[user]
+    name = builds.sr.ht
+    email = builds@sr.ht
+EOF
+
+# Update guest guix
+guest_ssh build@localhost guix pull -v0

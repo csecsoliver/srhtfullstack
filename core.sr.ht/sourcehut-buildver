@@ -1,0 +1,36 @@
+#!/bin/sh -eu
+# Determine the current software version from various sources.
+
+if [ -d .git ]; then
+	# It's in git
+	git describe --long --abbrev=12 --tags --dirty 2>/dev/null
+elif [ -e .git_archival.txt -a -z "$(grep '\$' .git_archival.txt 2>/dev/null)" ]; then
+	# It's in the output of a `git archive` invocation; .git_archival.txt
+	# looks like this:
+	#   describe-name: 0.76.0-42-g403bcfef25e6
+	cat .git_archival.txt | cut -d ' ' -f2
+elif [ -d .hg ]; then
+	# It's in Mercurial; hg sum looks like this:
+	#   parent: 515:f56adb8a5d8a tip
+	#   Added tag 0.40.2 for changeset ee593b9d659d
+	#   branch: default
+	#   commit: (clean)
+	#   update: (current)
+	hg sum 2>/dev/null | grep parent | cut -d ' ' -f2 | cut -d ':' -f2
+elif [ -e .hg_archival.txt ]; then
+	# It's in the output of a `hg archive` invocation; .hg_archival.txt
+	# looks like this:
+	#   repo: 1e4606037d89ab4a245c3b3b52f757057891c0a6
+	#   node: f56adb8a5d8aa36a6e25ed1267af1f3be7073b4e
+	#   branch: default
+	#   latesttag: 0.40.2
+	#   latesttagdistance: 1
+	#   changessincelatesttag: 1
+	grep node .hg_archival.txt | cut -d ' ' -f2 | cut -b-12
+elif [ -n "${PKGVER+x}" ]; then
+	# It's in the PKGVER environment varible
+	echo $PKGVER
+else
+	# It's nowhere to be found.
+	echo "unknown"
+fi

@@ -1,0 +1,12 @@
+#!/bin/sh -eu
+# Input: list of paths to git repositories exported from Postgres
+# \copy (select path from repository) TO 'repos.csv' (format CSV);
+while read -r path
+do
+	echo "$path"
+	git -C "$path" config core.repositoryformatversion 0
+	git -C "$path" config core.filemode true
+	git -C "$path" config receive.denyDeleteCurrent ignore
+	git -C "$path" config receive.advertisePushOptions true
+	git -C "$path" config http.uploadarchive true
+done

@@ -1,0 +1,31 @@
+{% extends "manage.html" %}
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <p>This will permanently delete the wiki.
+      <strong>{{ owner.canonical_name }}/{{ wiki.name }}</strong>.
+      This cannot be undone.
+    </p>
+    <form method="POST">
+      {{csrf_token()}}
+      <button type="submit" class="btn btn-danger">
+        Proceed and delete {{icon("caret-right")}}
+      </button>
+      <a
+        class="btn btn-default"
+        href="{{ url_for("html.user_content",
+          owner_name=owner.username, wiki_name=wiki.name) }}"
+      >Nevermind</a>
+      <label class="form-check-label" style="margin-left: 2rem">
+        {% set repo_url = git_repo_url(wiki) %}
+        <input
+          class="form-check-input"
+          type="checkbox"
+          name="delete_repo"
+          style="position: relative; top: 2px;">
+          Delete corresponding
+          "<a href="{{repo_url}}">{{wiki.repo_name}}</a>"
+          git repo?
+      </label>
+    </form>
+{% endblock %}

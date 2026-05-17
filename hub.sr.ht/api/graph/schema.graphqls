@@ -1,0 +1,209 @@
+# This schema definition is available in the public domain, or under the terms
+# of CC-0, at your choice.
+
+scalar Cursor
+
+"String of the format %Y-%m-%dT%H:%M:%SZ"
+scalar Time
+
+"""
+A file uploaded alongside the GraphQL request. This API is compatible with the
+multipart request specification for requests that include uploads:
+
+https://github.com/jaydenseric/graphql-multipart-request-spec
+"""
+scalar Upload
+
+"Used to provide a human-friendly description of an access scope"
+directive @scopehelp(details: String!) on ENUM_VALUE
+
+"""
+This is used to decorate fields which are for internal use, and are not
+available to normal API users.
+"""
+directive @internal on FIELD_DEFINITION
+
+enum AccessScope {
+  PROFILE  @scopehelp(details: "profile information")
+  PROJECTS @scopehelp(details: "projects")
+  LISTS    @scopehelp(details: "mailing lists")
+  SOURCES  @scopehelp(details: "source repositories")
+  TRACKERS @scopehelp(details: "trackers")
+}
+
+enum AccessKind {
+  RO @scopehelp(details: "read")
+  RW @scopehelp(details: "read and write")
+}
+
+"""
+Decorates fields for which access requires a particular OAuth 2.0 scope with
+read or write access.
+"""
+directive @access(scope: AccessScope!, kind: AccessKind!) on FIELD_DEFINITION
+
+# https://semver.org
+type Version {
+  major: Int!
+  minor: Int!
+  patch: Int!
+  buildVersion: String!
+  buildDate: String!
+  """
+  If this API version is scheduled for deprecation, this is the date on which
+  it will stop working; or null if this API version is not scheduled for
+  deprecation.
+  """
+  deprecationDate: Time
+
+  "Optional features"
+  features: Features!
+}
+
+"Describes the status of optional features"
+type Features {
+  lists: Boolean!
+  git: Boolean!
+  hg: Boolean!
+  todo: Boolean!
+}
+
+interface Entity {
+  canonicalName: String!
+}
+
+enum Visibility {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}
+
+enum RepoType {
+  GIT
+  HG
+}
+
+type User implements Entity {
+  id: Int!
+  canonicalName: String!
+  username: String!
+
+  project(name: String!): Project @access(scope: PROJECTS, kind: RO)
+  projects(cursor: Cursor): ProjectCursor! @access(scope: PROJECTS, kind: RO)
+}
+
+type Project {
+  rid: ID!
+  created: Time!
+  updated: Time!
+  owner: Entity! @access(scope: PROFILE, kind: RO)
+  name: String!
+  description: String
+  website: String
+  visibility: Visibility!
+  checklistComplete: Boolean!
+  tags: [String!]!
+
+  mailingLists(cursor: Cursor): MailingListCursor! @access(scope: LISTS, kind: RO)
+  sources(cursor: Cursor): SourceRepoCursor! @access(scope: SOURCES, kind: RO)
+  trackers(cursor: Cursor): TrackerCursor! @access(scope: TRACKERS, kind: RO)
+
+  resource(rid: ID!): ProjectResource @access(scope: LISTS, kind: RO)
+  mailingList(name: String!): MailingList @access(scope: LISTS, kind: RO)
+  source(name: String!): SourceRepo @access(scope: SOURCES, kind: RO)
+  tracker(name: String!): Tracker @access(scope: TRACKERS, kind: RO)
+}
+
+type ProjectCursor {
+  results: [Project!]!
+  cursor: Cursor
+}
+
+interface ProjectResource {
+  rid: ID!
+  linked: Time!
+  updated: Time!
+  owner: Entity! @access(scope: PROFILE, kind: RO)
+  name: String!
+  description: String
+  visibility: Visibility!
+}
+
+type MailingList implements ProjectResource {
+  rid: ID!
+  linked: Time!
+  updated: Time!
+  owner: Entity! @access(scope: PROFILE, kind: RO)
+  name: String!
+  description: String
+  visibility: Visibility!
+}
+
+type MailingListCursor {
+  results: [MailingList!]!
+  cursor: Cursor
+}
+
+type SourceRepo implements ProjectResource {
+  rid: ID!
+  linked: Time!
+  updated: Time!
+  owner: Entity! @access(scope: PROFILE, kind: RO)
+  name: String!
+  description: String
+  repoType: RepoType!
+  visibility: Visibility!
+}
+
+type SourceRepoCursor {
+  results: [SourceRepo!]!
+  cursor: Cursor
+}
+
+type Tracker implements ProjectResource {
+  rid: ID!
+  linked: Time!
+  updated: Time!
+  owner: Entity! @access(scope: PROFILE, kind: RO)
+  name: String!
+  description: String
+  visibility: Visibility!
+}
+
+type TrackerCursor {
+  results: [Tracker!]!
+  cursor: Cursor
+}
+
+type Query {
+  "Returns API version information."
+  version: Version!
+
+  "Returns the authenticated user"
+  me: User! @access(scope: PROFILE, kind: RO)
+
+  "Looks up a specific user"
+  user(username: String!): User @access(scope: PROFILE, kind: RO)
+
+  "Looks up a specific project"
+  project(rid: ID!): Project @access(scope: PROJECTS, kind: RO)
+
+  "Looks up a specific resource"
+  resource(rid: ID!): ProjectResource @access(scope: PROJECTS, kind: RO)
+
+  "Looks up a specific mailing list"
+  mailingList(rid: ID!): MailingList @access(scope: LISTS, kind: RO)
+
+  "Looks up a specific source repository"
+  source(rid: ID!): SourceRepo @access(scope: SOURCES, kind: RO)
+
+  "Looks up a specific tracker"
+  tracker(rid: ID!): Tracker @access(scope: TRACKERS, kind: RO)
+}
+
+type Mutation {
+  """
+  Deletes the authenticated user's account. Internal use only.
+  """
+  deleteUser: Int! @internal
+}

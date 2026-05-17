@@ -1,0 +1,15 @@
+mutation CreateSSHKey($key: String!) {
+  key: createSSHKey(key: $key) { id }
+}
+
+mutation DeleteSSHKey($key: Int!) {
+  deleteSSHKey(id: $key) { id }
+}
+
+mutation CreatePGPKey($key: String!) {
+  createPGPKey(key: $key) { id }
+}
+
+mutation DeletePGPKey($key: Int!) {
+  deletePGPKey(id: $key) { id }
+}

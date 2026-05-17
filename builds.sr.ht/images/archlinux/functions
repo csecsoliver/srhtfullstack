@@ -1,0 +1,57 @@
+#!/bin/sh
+poweroff_cmd="sudo systemctl poweroff"
+default_arch=x86_64
+
+boot() {
+	if [ "$arch" != "x86_64" ]
+	then
+		echo "Unsupported architecture $arch" >&2
+		exit 1
+	fi
+	_boot $(cpu_opts x86_64)
+}
+
+install() {
+	port=$1
+	shift 1
+	guest_ssh -p $port build@localhost \
+		sudo pacman -Sy --noconfirm --needed archlinux-keyring
+	# Use pacinstall instead of pacman to resolve conflicts
+	guest_ssh -n -p $port build@localhost sudo pacinstall --sysupgrade --yolo
+	guest_ssh -p $port build@localhost EDITOR=true PKGEXT=.pkg.tar \
+		yay --needed --noconfirm --provides=false -S "$@"
+}
+
+add_repository() {
+	port=$1
+	name=$2
+	src=$3
+	repo=$(echo $src | cut -d'#' -f1)
+	key=$(echo $src | cut -d'#' -f2)
+	printf '[%s]\nServer = %s\n' "$name" "$repo" \
+		| guest_ssh -p $port build@localhost sudo tee -a /etc/pacman.conf
+	guest_ssh -p $port build@localhost sudo pacman-key -r $key
+	guest_ssh -p $port build@localhost sudo pacman-key --lsign-key $key
+	guest_ssh -p $port build@localhost sudo pacman -Sy
+}
+
+sanity_check() {
+	echo "Booting..."
+	cmd_boot x86_64 8022 qemu &
+	trap 'cmd_cleanup 8022' EXIT
+	_wait_boot 8022
+	echo "Testing sudo..."
+	guest_ssh -p 8022 build@localhost sudo ls -a
+	echo "Testing networking..."
+	guest_ssh -p 8022 build@localhost curl https://builds.sr.ht
+	echo "Testing pacman..."
+	guest_ssh -p 8022 build@localhost sudo pacman -Syu --noconfirm
+	echo "Testing git..."
+	guest_ssh -p 8022 build@localhost git --version
+	echo "Testing mercurial..."
+	guest_ssh -p 8022 build@localhost hg --version
+	echo "Testing AUR packages..."
+	install 8022 brightnessctl
+	echo "Everything works!"
+	guest_ssh -p 8022 build@localhost sudo systemctl poweroff || true
+}

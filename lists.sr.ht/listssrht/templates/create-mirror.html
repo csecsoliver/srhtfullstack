@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-6">
+      <h3>Create new mirror</h3>
+      <p>
+        Mirrored lists receive emails from an externally managed mailing list
+        and shows them in the {{cfg("sr.ht", "site-name")}} archive.
+      </p>
+      <form method="POST" action="{{url_for(".create_mirror_POST")}}">
+        {{csrf_token()}}
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input
+            type="text"
+            name="name"
+            id="name"
+            class="form-control {{valid.cls("name")}}"
+            value="{{ name or "" }}" />
+          {{valid.summary("name")}}
+        </div>
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea
+            name="description"
+            id="description"
+            class="form-control {{valid.cls("description")}}"
+            value="{{ description or "" }}"
+            placeholder="Markdown supported"
+            rows="5"
+            aria-describedby="description-help"
+          >{{description or ""}}</textarea>
+          {{valid.summary("description")}}
+        </div>
+        <div class="form-group">
+          <label for="address">Subscription address or URL</label>
+          <input
+            type="text"
+            name="address"
+            id="address"
+            aria-describedby="address-help"
+            class="form-control {{valid.cls("address")}}"
+            value="{{address or ""}}" />
+          {{valid.summary("address")}}
+          {% if address and "+subscribe" not in address %}
+          <input type="hidden" name="weird-email-okay" value="yes" />
+          {% endif %}
+        </div>
+        <p id="address-help" class="form-text text-muted">
+          Take care to use the subscription address - not the posting address.
+        </p>
+        <button type="submit" class="btn btn-primary">
+          Create {{icon("caret-right")}}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "resource-list.html" %}
+{% block resource_list %}
+{% if not any(trackers) %}
+<div class="alert alert-info">
+  This project has no public ticket trackers.
+</div>
+{% endif %}
+{% for tracker in trackers %}
+<div class="event">
+  <h4>
+    <a href="{{tracker.url()}}">~{{tracker.owner.username}}/{{tracker.name}}</a>
+  </h4>
+  {% if tracker.description %}
+  {{ tracker.description | md }}
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block sidebar %}
+<a
+  href="{{url_for("trackers.new_GET", owner=owner.canonical_name,
+    project_name=project.name)}}"
+  class="btn btn-primary btn-block"
+>Add tracker&nbsp;{{icon('caret-right')}}</a>
+<a
+  href="{{url_for("trackers.manage_GET",
+          owner=owner.canonical_name, project_name=project.name)}}"
+  class="btn btn-default btn-block"
+>Manage trackers&nbsp;{{icon('caret-right')}}</a>
+{% endblock %}

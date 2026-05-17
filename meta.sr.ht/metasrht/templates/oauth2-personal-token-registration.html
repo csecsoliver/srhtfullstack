@@ -1,0 +1,94 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>Register personal access token - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <h3>Personal Access Token</h3>
+  </div>
+</div>
+<div class="row">
+  <form class="col-md-10 offset-md-1" method="POST">
+    {{csrf_token()}}
+    <p>
+      Personal access tokens are used by third-party applications and scripts
+      to access to your {{cfg('sr.ht', 'site-name')}} account.
+    </p>
+    {% if fixed_literal_grants %}
+      <div class="alert alert-info">
+        The permissions for this access token have been pre-set to
+        <strong>{{fixed_literal_grants}}</strong>.
+      </div>
+      <input type="hidden" name="literal_grants" value="{{fixed_literal_grants}}"/>
+    {% else %}
+      <details class=".details" {% if valid and not valid.ok %}open{% endif %}>
+        <summary>Limit scope of access grant</summary>
+        <div class="form-group">
+          <label for="grants">Select access grants (multiple selections are permitted)</label>
+          <select id="grants" name="grants" size="8" class="form-control" multiple>
+            {% for group in access_grants %}
+            <optgroup label="{{group['name']}}">
+              {% for scope in group['scopes'] %}
+              {% set val = group['name'] + "/" + scope %}
+              <option
+                value="{{val}}"
+                {% if grants and (val + ":RO" in grants or val + ":RW" in grants) %}
+                selected
+                {% endif %}
+              >{{scope}}</option>
+              {% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="checkbox">
+            <input
+              type="checkbox"
+              name="read_only"
+              {% if read_only and read_only == "on" %}
+              checked
+              {% endif %} />
+            Generate read-only access token
+          </label>
+        </div>
+        <div class="form-group">
+          <label for="literal_grants">Or use grant string</label>
+          <input
+            type="text"
+            name="literal_grants"
+            id="literal_grants"
+            class="form-control {{valid.cls("literal_grants")}}"
+            placeholder="meta.sr.ht/BILLING:RW meta.sr.ht/PROFILE"
+            value="{{literal_grants or ""}}" />
+          {{valid.summary("literal_grants")}}
+        </div>
+      </details>
+    {% endif %}
+    <div class="form-group">
+      <label for="comment">Comment</label>
+      <input
+        type="text"
+        id="comment"
+        name="comment"
+        class="form-control {{valid.cls("note")}}"
+        aria-describedBy="comment-help" />
+      <small id="comment-help" class="text-muted">
+        Arbitrary comment, for personal reference only
+      </small>
+      {{valid.summary("comment")}}
+    </div>
+    <div class="alert alert-danger">
+      <strong>Notice:</strong> Sharing a personal access token is similar to
+      sharing your account password. Proceed with caution.
+    </div>
+    <button type="submit" class="btn btn-primary">
+      Generate token {{icon('caret-right')}}
+    </button>
+    <a href="{{url_for('oauth2.dashboard')}}" class="btn btn-default">
+      Cancel {{icon('caret-right')}}
+    </a>
+  </form>
+</div>
+{% endblock %}

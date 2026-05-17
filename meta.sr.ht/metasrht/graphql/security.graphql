@@ -1,0 +1,5 @@
+mutation EnableTOTP($secret: String!) {
+  config: enableTOTP(secret: $secret) {
+    recoveryCodes
+  }
+}

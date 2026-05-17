@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+from listssrht.process import _import_patch
+from listssrht.types import Email, Patchset
+import sys
+
+emails = (Email.query
+    .filter(Email.is_patch == True)
+    .filter(Email.patchset_id == None)).all()
+nemails = len(emails)
+
+for i, email in enumerate(emails):
+    print(f"Importing {i+1}/{nemails}: {email.subject}")
+
+    thread = email
+    while thread.parent_id:
+        thread = thread.parent
+
+    thread_members = [thread]
+    for current in Email.query.filter(Email.thread_id == thread.id):
+        thread_members.append(current)
+
+    _import_patch(thread_members, email, email.parsed())

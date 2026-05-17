@@ -1,0 +1,47 @@
+{% macro link(endpoint, title) %}
+<a
+  class="nav-link {% if request.endpoint.split('.')[-1] == endpoint[1:] %}active{% endif %}"
+  href="{{ url_for(endpoint, user=paste.user.username, sha=paste.sha) }}"
+>{{ title }}</a>
+{% endmacro %}
+{% extends "layout-full.html" %}
+{% block body %}
+<div class="header-tabbed">
+  <div class="container-fluid">
+    <ul class="nav nav-tabs">
+      <h2>
+        <a href="{{ url_for("public.pastes_user",
+          user=paste.user.username) }}"
+        >{{ paste.user.canonical_name -}}</a>/<wbr>
+        {%- if len(paste.files) == 1 -%}
+        {{paste.files[0].filename or paste.sha[:7]}}
+        {%- else -%}
+        {{paste.sha[:7]}}
+        {%- endif %}
+        {% if paste.visibility != Visibility.PUBLIC %}
+        <small class="text-muted">
+          {{ paste.visibility.value.lower() }}
+        </small>
+        {% endif %}
+      </h2>
+      <li class="nav-item">
+        {%- if len(paste.files) == 1 -%}
+        {{ link(".paste_GET", "view paste") }}
+        {%- else -%}
+        {{ link(".paste_GET", "view paste (" + str(len(paste.files)) + " files)") }}
+        {%- endif -%}
+      </li>
+      {%- if current_user.id == paste.user_id -%}
+      <li class="nav-item">
+        {{ link(".paste_manage", "manage") }}
+      </li>
+      <li class="nav-item">
+        {{ link(".paste_delete", "delete") }}
+      </li>
+      {%- endif %}
+    </ul>
+  </div>
+</div>
+{% block paste_body %}
+{% endblock %}
+{% endblock %}

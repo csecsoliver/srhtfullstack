@@ -1,0 +1,53 @@
+image: ubuntu/lts
+packages:
+  - debootstrap
+  - e2fsprogs
+  - qemu-system-x86
+  - qemu-user-static
+  - binfmt-support
+  - rsync
+  - extlinux
+  - fdisk
+sources:
+  - https://git.sr.ht/~sircmpwn/builds.sr.ht
+environment:
+  arch: amd64
+  release: latest
+  slaves:
+    - deploy@fra01.builds.sr.ht
+    - deploy@fra02.builds.sr.ht
+    - deploy@rsync.builds.sr.ht
+secrets:
+  - fa00a8d3-7b63-42d5-8060-3bb31c3e3018
+triggers:
+  - action: email
+    condition: failure
+    to: ~sircmpwn/sr.ht-image-failures@lists.sr.ht
+    cc: Haowen Liu <lhw@lunacd.com>
+tasks:
+  - genimg: |
+      cd builds.sr.ht
+      cd images/ubuntu/$release
+      sudo ./genimg $arch
+  - sanity-check: |
+      cd builds.sr.ht
+      if [ -e /dev/kvm ] && [ "$(uname -m)" = "x86_64" ]
+      then
+          # Ubuntu does not have a kvm group so we just gotta do it this way
+          sudo chown build:build /dev/kvm
+          MEMORY=1024 ./images/control ubuntu/$release sanity-check
+      else
+          echo "KVM unavailable, skipping sanity check"
+      fi
+  - deploy: |
+      cd builds.sr.ht/images/ubuntu/$release
+      echo "StrictHostKeyChecking=no" >> ~/.ssh/config
+      for server in "${slaves[@]}"
+      do
+        ssh $server mkdir -p /var/lib/images/ubuntu/$release/$arch
+        rsync -rzP $arch/root.img.qcow2 \
+            ${server}:/var/lib/images/ubuntu/$release/$arch/new_root.img.qcow2
+        ssh $server mv \
+            /var/lib/images/ubuntu/$release/$arch/new_root.img.qcow2 \
+            /var/lib/images/ubuntu/$release/$arch/root.img.qcow2
+      done

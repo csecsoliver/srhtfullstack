@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block head %}
+<meta name="description" content="Account management hub for {{cfg("sr.ht", "site-name")}} services" />
+{% endblock %}
+{% block body %}
+<div class="header-tabbed">
+  <div class="container">
+    <ul class="nav nav-tabs">
+      {% block tabs %}
+      {% include "tabs.html" %}
+      {% endblock %}
+    </ul>
+  </div>
+</div>
+<div class="container">
+  {% if notice %}
+  <div class="alert alert-info">
+    {{notice}}
+  </div>
+  {% endif %}
+  {% block content %}{% endblock %}
+</div>
+{% endblock %}

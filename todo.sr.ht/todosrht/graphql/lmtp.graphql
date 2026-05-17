@@ -1,0 +1,19 @@
+mutation SubmitTicketViaEmail($trackerId: Int!, $input: SubmitTicketEmailInput!) {
+  ticket: submitTicketEmail(trackerId: $trackerId, input: $input) {
+    id
+  }
+}
+
+mutation SubmitCommentViaEmail(
+  $trackerId: Int!,
+  $ticketId: Int!,
+  $input: SubmitCommentEmailInput!,
+) {
+    event: submitCommentEmail(
+      trackerId: $trackerId,
+      ticketId: $ticketId,
+      input: $input,
+    ) {
+        id
+    }
+}

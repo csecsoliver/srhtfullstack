@@ -1,0 +1,24 @@
+query GetRepoAccessSettings($user: String!, $repo: String!, $cursor: Cursor) {
+  user(username: $user) {
+    canonicalName
+    username
+    repository(name: $repo) {
+      name
+      acls(cursor: $cursor) {
+        cursor
+        results {
+          id
+          created
+          mode
+          entity {
+              canonicalName
+
+              ... on User {
+                username
+              }
+          }
+        }
+      }
+    }
+  }
+}

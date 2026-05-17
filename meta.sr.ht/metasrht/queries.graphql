@@ -1,0 +1,42 @@
+query GetBillingAddress {
+  me {
+    billingAddress { ... billingAddress }
+  }
+}
+
+query GetBillingSetup {
+  me {
+    paymentStatus
+    paymentDue
+
+    subscription {
+      autorenew
+      currency
+      status
+      updated
+    }
+  }
+
+  products { ... product }
+}
+
+fragment billingAddress on BillingAddress {
+  fullName
+  businessName
+  address1
+  address2
+  city
+  region
+  postcode
+  country
+  vat
+}
+
+fragment product on Product {
+  id
+  name
+  prices {
+    currency
+    amount
+  }
+}

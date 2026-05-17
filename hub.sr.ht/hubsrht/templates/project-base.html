@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="header-tabbed">
+  <div class="container">
+    {% include 'project-nav.html' %}
+  </div>
+</div>
+{% if project.description %}
+<div class="header-extension">
+  <div class="container">{{ project.description }}</div>
+</div>
+{% endif %}
+{% block content %}
+{% endblock %}
+{% endblock %}

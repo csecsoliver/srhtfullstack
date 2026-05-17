@@ -1,0 +1,93 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>
+  Edit {{ ticket.ref() }}: {{ ticket.title }}
+  &mdash;
+  {{ cfg("sr.ht", "site-name") }} todo
+</title>
+{% endblock %}
+{% block body %}
+<div class="container">
+  <h2 class="ticket-title">
+    <div>
+      <a href="{{ tracker.owner|user_url }}">{{ tracker.owner }}</a>/<wbr
+     ><a href="{{ tracker|tracker_url }}">{{ tracker.name }}</a><wbr
+     >#{{ ticket.scoped_id }}<spanclass="d-none d-md-inline">:&nbsp;</span>
+    </div>
+    <div id="title-field">
+      {{ticket.title}}
+    </div>
+  </h2>
+</div>
+<div class="header-tabbed">
+  <div class="container">
+    <ul class="nav nav-tabs">
+      <li class="nav-item">
+        <a href="{{ ticket|ticket_url }}" class="nav-link">view</a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ ticket|ticket_edit_url }}"
+          class="nav-link active">edit</a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ ticket|ticket_delete_url }}"
+          class="nav-link">delete</a>
+      </li>
+    </ul>
+  </div>
+</div>
+<div class="container">
+  <div class="row">
+    <form class="col-md-6" method="POST">
+      {{csrf_token()}}
+      <div class="form-group">
+        <label for="title">Title</label>
+        <input
+           type="text"
+           dir="auto"
+           class="form-control {{ valid.cls("title") }}"
+           maxlength="2048"
+           id="title"
+           name="title"
+           autofocus
+           value="{{ title or ticket.title or "" }}"
+           required />
+        {{valid.summary("title")}}
+      </div>
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea
+          dir="auto"
+          class="form-control {{ valid.cls("description") }}"
+          name="description"
+          rows="5"
+          placeholder="Markdown supported"
+          maxlength="16384"
+        >{{ description or ticket.description or "" }}</textarea>
+        {{valid.summary("description")}}
+      </div>
+
+      <div class="text-right">
+        <a href="{{ ticket|ticket_url }}" class="btn btn-default">
+          Cancel
+        </a>
+        <button type="submit" name="preview" class="btn btn-default">
+          Preview {{icon("caret-right")}}
+        </button>
+        <button
+          type="submit"
+          class="btn btn-primary"
+        >Save changes {{icon("caret-right")}}</button>
+      </div>
+
+      {% if rendered_preview %}
+      <div class="ticket-preview">
+        <span class="preview-tag">Ticket preview</span>
+        <h2>{{ title }}</h2>
+        {{ rendered_preview }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

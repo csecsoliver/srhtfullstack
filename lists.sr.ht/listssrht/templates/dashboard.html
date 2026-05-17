@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-4">
+      <p>
+        Welcome back, {{ current_user.username }}! This is your mailing lists
+        service. Documentation for its use is
+        <a href="https://man.sr.ht/lists.sr.ht">available here</a>.
+      </p>
+      <p>
+        {% if
+          cfg("lists.sr.ht", "allow-new-lists", default="yes") == "yes"
+          or current_user.user_type.value == "ADMIN"
+        %}
+        <a
+          href="{{url_for("user.create_list_GET")}}"
+          class="btn btn-primary btn-block"
+        >Create new list {{icon("caret-right")}}</a>
+        {% endif %}
+        <a href="/~{{ current_user.username }}" class="btn btn-default btn-block">
+          View your profile {{icon("caret-right")}}
+        </a>
+        <details
+          class="prefs"
+          {% if prefs_updated %}
+          open
+          {% endif %}
+        >
+          <summary>User preferences</summary>
+          <form method="POST" action="{{url_for('user.index_POST')}}">
+            {{csrf_token()}}
+            <label class="form-check">
+              <input
+                type="checkbox"
+                name="copy-self"
+                id="copy-self"
+                {{ "checked" if copy_self }} />
+              Send me a copy of my own emails
+            </label>
+            <button class="btn btn-primary" type="submit">
+              Apply {{icon("caret-right")}}
+            </button>
+          </form>
+        </details>
+      </p>
+      {% for list in subs %}
+      <div style="margin-top: 1rem">
+        <h4>
+          <a href="{{ url_for("archives.archive",
+              owner_name=list.owner.canonical_name,
+              list_name=list.name
+            ) }}"
+          >{{list.owner.canonical_name}}/{{list.name}}</a>
+        </h4>
+        {% if list.last_activity %}
+        <span class="text-muted">Last active {{ list.last_activity | date }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="col-md-8">
+      {% if notice %}
+      <div class="alert alert-info">
+        {{notice}}
+      </div>
+      {% endif %}
+      {% if any(recent) %}
+      <h3>Recent activity</h3>
+      <div class="event-list">
+        {% for email in recent %}
+        <div class="event">
+          <h4>
+            <a href="{{ url_for("archives.thread",
+                owner_name=email.list.owner.canonical_name,
+                list_name=email.list.name,
+                message_id=email.thread.message_id if email.thread else email.message_id,
+              ) }}{{ "#" + email.message_id if email.thread else "" }}">
+              {{ email.subject }}
+            </a>
+            <small class="text-muted pull-right">{{ email.created | date }}</small>
+          </h4>
+          <p>
+            From
+            {% if current_user %}
+            <a href="mailto:{{
+                email.parsed().get('From')
+              }}?in-reply-to={{
+                quote(email.message_id)
+              }}">{{ email.parsed().get('From') }}</a>
+            {% else %}
+            {{ parseaddr(email.parsed().get('From'))[0] }}
+            {% endif %}
+            to
+            <a
+              href="{{ url_for("archives.archive",
+                owner_name=email.list.owner.canonical_name,
+                list_name=email.list.name
+              ) }}"
+              >{{email.list.owner.canonical_name}}/{{email.list.name}}</a>
+          </p>
+          <blockquote>
+            {{ format_body(email, limit=15) }}
+          </blockquote>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p>
+        Nothing to report here. Try participating in some mailing lists!
+      </p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

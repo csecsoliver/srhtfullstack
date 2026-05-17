@@ -1,0 +1,39 @@
+image: nixos/unstable
+arch: x86_64
+packages:
+  - nixos.qemu_kvm
+  - nixos.rsync
+sources:
+  - https://git.sr.ht/~sircmpwn/builds.sr.ht
+secrets:
+  - fa00a8d3-7b63-42d5-8060-3bb31c3e3018
+environment:
+  release: "25.05"
+  arch: x86_64
+  slaves:
+    - deploy@fra01.builds.sr.ht
+    - deploy@fra02.builds.sr.ht
+    - deploy@rsync.builds.sr.ht
+triggers:
+  - action: email
+    condition: failure
+    to: Drew DeVault <sir@cmpwn.com>
+tasks:
+  - genimg: |
+      cd builds.sr.ht/images/nixos
+      ./genimg "${release}" "$(uname -m)"
+  - sanity-check: |
+      cd builds.sr.ht
+      MEMORY=1024 ./images/control "nixos/${release}" sanity-check
+  - deploy: |
+      cd builds.sr.ht/images/nixos/$release
+      echo "StrictHostKeyChecking=no" >> ~/.ssh/config
+      for server in "${slaves[@]}"
+      do
+        ssh $server mkdir -p /var/lib/images/nixos/$release/$arch
+        rsync -rzP $arch/root.img.qcow2 \
+          ${server}:/var/lib/images/nixos/$release/$arch/new_root.img.qcow2
+        ssh $server \
+          mv /var/lib/images/nixos/$release/$arch/new_root.img.qcow2 \
+             /var/lib/images/nixos/$release/$arch/root.img.qcow2
+      done

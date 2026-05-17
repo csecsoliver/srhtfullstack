@@ -1,0 +1,292 @@
+{% extends "meta.html" %}
+{% import "partials/invoice.html" as invoice %}
+
+{% set address = user.address %}
+{% set default_method = user.default_method %}
+{% set invoices = user.invoices.results %}
+{% set methods = user.methods %}
+{% set sub = user.subscription %}
+
+{% block title %}
+<title>Billing - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    {% if message %}
+    <div class="alert alert-info">{{message}}</div>
+    {% endif %}
+
+    {# Non-paying users are redirected to /billing/initial #}
+
+    {% if current_user.payment_status == PaymentStatus.FREE %}
+
+    <div class="alert alert-info">
+      Your account is <strong>exempt</strong> from billing. All features are
+      available to you free of charge. You may choose to set up billing
+      if you wish to support the site.
+    </div>
+
+    {% elif current_user.payment_status == PaymentStatus.SUBSIDIZED %}
+
+    <div class="alert alert-warning">
+      Your account has been approved for financial aid. You will receive
+      subsidized services until your financial aid term expires
+      <strong>{{current_user.payment_due | date}}</strong>, at which point you
+      are encouraged to apply again.
+    </div>
+
+    {% elif current_user.payment_status == PaymentStatus.CURRENT %}
+
+    {% if not sub.autorenew %}
+
+    <div class="alert alert-warning">
+      Your renewal payment has been cancelled. When your term expires
+      {{current_user.payment_due | date}}, you will no longer have
+      access to paid features.
+    </div>
+
+    {% elif sub.status == SubscriptionStatus.ACTIVE %}
+
+    <div class="alert alert-success">
+      Your account is <strong>paid</strong> and up-to-date. Your next
+      {% if sub.interval == PaymentInterval.MONTHLY %}
+      monthly
+      {% else %}
+      annual
+      {% endif %}
+      payment of {{sym}}{{"{:.2f}".format(sub.total / 100.0)}} will be
+      automatically charged on {{current_user.payment_due.strftime("%B %d, %Y")}}.
+    </div>
+
+    {% if sub.product.retired %}
+    <div class="alert alert-info">
+      <strong>Notice</strong>: Your paid subscription is no longer offered to
+      new customers at your current price. If you cancel your subscription, you
+      will have to pay the new price when you sign up again. If you want to
+      support us (thank you!), you may also voluntarily upgrade your account
+      to one of the new plans.
+      <a href="{{url_for("billing.change_product_GET")}}">Upgrade my account {{icon('caret-right')}}</a>
+    </div>
+    {% endif %}
+
+    {% elif sub.status == SubscriptionStatus.SETTLEMENT %}
+
+    <div class="alert alert-info">
+      Your subscription payment was charged {{sub.updated | date}} and is
+      awaiting settlement, which should take place within the next 7 business
+      days. As a courtesy, paid features are available for your account
+      immediately.
+    </div>
+
+    {% endif %}
+
+    {% elif current_user.payment_status == PaymentStatus.DELINQUENT %}
+
+    <div class="alert alert-danger">
+      {{icon('exclamation-circle')}} <strong>Important notice</strong>
+
+      <p>
+        Your most recent
+        {% if sub.interval == PaymentInterval.MONTHLY %}
+        monthly
+        {% else %}
+        annual
+        {% endif %}
+        payment
+        {% if sub["payment"]["error"] %}
+        failed: {{ sub["payment"]["error"] }}
+        {% else %}
+        failed.
+        {% endif %}
+        You have an outstanding balance of {{sym}}{{"{:.2f}".format(sub.total / 100.0)}}.
+        Your access to paid features may be affected as a consequence.
+      </p>
+
+      <p>
+        Your payment will be automatically retried over the next few days. You
+        may also consider the following solutions:
+      </p>
+
+      <ul>
+        <li>
+          <a
+            href="{{url_for("billing.new_payment_method_GET")}}"
+          >Add a new payment method {{icon('caret-right')}}</a>
+        </li>
+        <li>
+          <a
+            href="{{url_for("billing.change_product_GET")}}"
+          >Modify payment amount or term {{icon('caret-right')}}</a>
+        </li>
+        <li>
+          <a
+            href="{{url_for("billing.cancel_GET")}}"
+          >Cancel your subscription {{icon('caret-right')}}</a>
+        </li>
+        <li>
+          <a
+            href="mailto:{{cfg('sr.ht', 'owner-email')}}"
+          >Contact support {{icon('caret-right')}}</a>
+        </li>
+      </ul>
+    </div>
+
+    {% endif %}
+  </div>
+</div>
+
+{% if current_user.payment_status == PaymentStatus.CURRENT
+  and sub.status in [SubscriptionStatus.ACTIVE, SubscriptionStatus.SETTLEMENT]
+  and sub.autorenew %}
+
+<div class="row" style="margin-bottom: 1rem">
+  <div class="col-md-3 offset-md-6">
+    <a
+      href="{{url_for("billing.change_product_GET")}}"
+      class="btn btn-default btn-block"
+    >Change your plan {{icon('caret-right')}}</a>
+  </div>
+  <div class="col-md-3">
+    <a href="{{url_for("billing.cancel_GET")}}" class="btn btn-danger btn-block">
+      Cancel your plan {{icon('caret-right')}}
+    </a>
+  </div>
+</div>
+
+{% elif current_user.payment_status == PaymentStatus.CURRENT and not sub.autorenew %}
+
+<div class="row" style="margin-bottom: 1rem">
+  <div class="col-md-3 offset-md-9">
+    <a
+      href="{{url_for("billing.change_product_GET")}}"
+      class="btn btn-primary btn-block"
+    >Renew your subscription {{icon('caret-right')}}</a>
+  </div>
+</div>
+
+{% elif current_user.payment_status == PaymentStatus.FREE %}
+
+<div class="row" style="margin-bottom: 1rem">
+  <div class="col-md-3 offset-md-9">
+    <a
+      href="{{url_for("billing.billing_setup_GET")}}"
+      class="btn btn-primary btn-block"
+    >Set up billing {{icon('caret-right')}}</a>
+  </div>
+</div>
+
+{% endif %}
+
+<div class="row">
+  <div class="col-md-6">
+
+    <h3>Billing address</h3>
+    <div class="event-list">
+      <div class="event">
+        {% if address %}
+        <a
+          href="{{url_for("billing.billing_address_GET")}}"
+          class="btn btn-default pull-right"
+        >Edit {{icon('caret-right')}}</a>
+        {% if address.full_name %}{{address.full_name}}<br />{% endif %}
+        {% if address.business_name %}{{address.business_name}}<br />{% endif %}
+        {% if address.address_1 %}{{address.address_1}}<br />{% endif %}
+        {% if address.address_2 %}{{address.address_2}}<br />{% endif %}
+        {% if address.city %}{{address.city}}<br />{% endif %}
+        {% if address.region %}{{address.region}}<br />{% endif %}
+        {% if address.postcode %}{{address.postcode}}<br />{% endif %}
+        {% if address.country %}
+        {% if address.country.alpha2 == "TW" %}
+        Taiwan<br />
+        {% else %}
+        {{address.country.name}}<br />
+        {% endif %}
+        {% endif %}
+        {% if address.vat %}{{address.vat}}<br />{% endif %}
+        {% else %}
+        <em>
+          We do not have a billing address on file for your account.
+          To include your address or business details on invoices,
+          <a
+            href="{{url_for("billing.billing_address_GET")}}"
+          >add a billing address</a>.
+        </em>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if methods %}
+    <h3>Payment methods</h3>
+    <div class="event-list">
+      {% for method in methods %}
+      <div class="event row">
+        <div class="col-md-12">
+          {{method.name}}
+
+          {% if method.expires %}
+          <dl class="row">
+            <dt class="col-md-4">Expires</dt>
+            <dd class="col-md-8">{{method.expires.strftime("%m/%Y")}}</dd>
+          </dl>
+          {% endif %}
+        </div>
+
+        <div class="col-md-5 offset-md-7">
+          {% if method.id == default_method.id %}
+          <div style="text-align: right">
+            {{icon('check', cls="text-success")}} Default
+          </div>
+
+          {% else %}
+
+          <form
+            style="margin-bottom: 0.5rem"
+            method="POST"
+            action="{{url_for("billing.set_default_method_POST", method_id=method.id)}}"
+          >
+            {{csrf_token()}}
+            <button class="btn btn-default btn-block">
+              Make default {{icon('caret-right')}}
+            </button>
+          </form>
+
+          <form
+            method="POST"
+            action="{{url_for("billing.remove_method_POST", method_id=method.id)}}"
+          >
+            {{csrf_token()}}
+            <button class="btn btn-outline-warning btn-block">
+              Remove {{icon('caret-right')}}
+            </button>
+          </form>
+
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <a
+      href="{{url_for("billing.new_payment_method_GET")}}"
+      class="btn btn-primary pull-right"
+    >Add payment method {{icon('caret-right')}}</a>
+    {% endif %}
+  </div>
+
+  {% if len(invoices) != 0 %}
+  <div class="col-md-6">
+    <h3>Invoices</h3>
+    <div class="event-list">
+      {% for i in invoices %}
+      {{ invoice.render(i, CURRENCY_SYMBOLS) }}
+      {% endfor %}
+      <a
+        href="{{url_for("billing.invoices_GET")}}"
+        class="btn btn-default btn-block"
+      >View all invoices {{icon('caret-right')}}</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

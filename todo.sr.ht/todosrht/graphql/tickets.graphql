@@ -1,0 +1,89 @@
+mutation SubmitComment(
+  $trackerId: Int!,
+  $ticketId: Int!,
+  $input: SubmitCommentInput!,
+) {
+  event: submitComment(
+    trackerId: $trackerId,
+    ticketId: $ticketId,
+    input: $input,
+  ) {
+    id
+  }
+}
+
+mutation UpdateTicket(
+  $trackerId: Int!,
+  $ticketId: Int!,
+  $input: UpdateTicketInput!,
+) {
+  ticket: updateTicket(
+    trackerId: $trackerId,
+    ticketId: $ticketId,
+    input: $input,
+  ) {
+    id
+  }
+}
+
+mutation DeleteTicket($trackerId: Int!, $ticketId: Int!) {
+  ticket: deleteTicket(trackerId: $trackerId, ticketId: $ticketId) {
+    id
+  }
+}
+
+mutation LabelTicket(
+  $trackerId: Int!,
+  $ticketId: Int!,
+  $labelId: Int!,
+) {
+  labelTicket(
+    trackerId: $trackerId,
+    ticketId: $ticketId,
+    labelId: $labelId,
+  ) {
+    id
+  }
+}
+
+mutation UnlabelTicket(
+  $trackerId: Int!,
+  $ticketId: Int!,
+  $labelId: Int!,
+) {
+  unlabelTicket(
+    trackerId: $trackerId,
+    ticketId: $ticketId,
+    labelId: $labelId,
+  ) {
+    id
+  }
+}
+
+mutation AssignUser(
+  $trackerId: Int!,
+  $ticketId: Int!,
+  $userId: Int!,
+) {
+  assignUser(
+    trackerId: $trackerId,
+    ticketId: $ticketId,
+    userId: $userId,
+  ) {
+    id
+  }
+}
+
+mutation UnassignUser(
+  $trackerId: Int!,
+  $ticketId: Int!,
+  $userId: Int!,
+) {
+  unassignUser(
+    trackerId: $trackerId,
+    ticketId: $ticketId,
+    userId: $userId,
+  ) {
+    id
+  }
+}

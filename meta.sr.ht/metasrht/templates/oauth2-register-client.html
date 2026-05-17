@@ -1,0 +1,83 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>Register OAuth 2.0 client - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <h3>Register OAuth 2.0 client</h3>
+  </div>
+</div>
+<div class="row">
+  <form class="col-md-10 offset-md-1" method="POST">
+    {{csrf_token()}}
+    <p>
+      {{cfg('sr.ht', 'site-name')}} provides API access via
+      <a
+        href="https://tools.ietf.org/html/rfc6749"
+        rel="noopener"
+      >RFC 6749</a>-compatible OAuth 2.0 confidential clients.
+    </p>
+    <div class="form-group">
+      <label for="client_name">Client name</label>
+      <input
+        type="text"
+        id="client_name"
+        name="client_name"
+        class="form-control {{valid.cls("client_name")}}"
+        value="{{client_name or ""}}"
+        required />
+      {{valid.summary("client_name")}}
+    </div>
+    <div class="form-group">
+      <label for="client_name">Description</label>
+      <input
+        type="text"
+        id="client_description"
+        name="client_description"
+        class="form-control {{valid.cls("client_description")}}"
+        value="{{client_description or ""}}" />
+      {{valid.summary("client_description")}}
+    </div>
+    <div class="form-group">
+      <label for="client_url">Informative URL</label>
+      <input
+        type="text"
+        id="client_url"
+        name="client_url"
+        class="form-control {{valid.cls("client_url")}}"
+        aria-describedBy="client_url-help"
+        value="{{client_url or ""}}" />
+      <small id="client_url-help" class="text-muted">
+        Where can the user go to learn more about your client?
+      </small>
+      {{valid.summary("client_url")}}
+    </div>
+    <div class="form-group">
+      <label for="redirect_uri">Redirection URI</label>
+      <input
+        type="text"
+        id="redirect_uri"
+        name="redirect_uri"
+        class="form-control {{valid.cls("redirect_uri")}}"
+        aria-describedBy="redirect_uri-help"
+        value="{{redirect_uri or ""}}"
+        required />
+      <small id="redirect_uri-help" class="text-muted">
+        Where should we send the user after they consent to give you API access?
+        See <a
+          href="https://tools.ietf.org/html/rfc6749#section-3.1.2"
+          rel="noopener"
+        >RFC 6749 section 3.1.2</a>.
+      </small>
+      {{valid.summary("redirect_uri")}}
+    </div>
+    <button type="submit" class="btn btn-primary">
+      Register client {{icon('caret-right')}}
+    </button>
+    <a href="{{url_for('oauth2.dashboard')}}" class="btn btn-default">
+      Cancel {{icon('caret-right')}}
+    </a>
+  </form>
+</div>
+{% endblock %}

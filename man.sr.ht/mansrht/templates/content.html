@@ -1,0 +1,140 @@
+{% extends "man.html" %}
+{% block title %}
+{% if title %}
+<title>{{ title }} - {{domain}}</title>
+{% else %}
+<title>{{domain}}</title>
+{% endif %}
+{% endblock %}
+{% block content %}
+{% set web_url = git_repo_url(repo) %}
+{% if not is_root or len(path) != 0 %}
+<div class="header-tabbed">
+  <div class="container">
+    <ul class="nav nav-tabs">
+      <h2>
+          {{title}}
+      </h2>
+      <li class="nav-item">
+        <a
+          class="nav-link active"
+          href="{{ url_for("html.user_content",
+            owner_name=wiki.owner.username, wiki_name=wiki.name) }}"
+        >article</a>
+      </li>
+      <li class="nav-item">
+        <a
+          class="nav-link"
+          href="{{web_url}}/tree/{{wiki.repo_ref}}/{{'/'.join(path)}}?view-source"
+        >source</a>
+      </li>
+      <li class="nav-item">
+        <a
+          class="nav-link"
+          href="{{web_url}}/log/{{wiki.repo_ref}}"
+        >history</a>
+      </li>
+    </ul>
+  </div>
+</div>
+{% if wiki and not is_root %}
+<div class="header-extension">
+  <div class="container">
+    <a href="{{ url_for("public.user_index",
+       username=wiki.owner.username) }}"
+    >{{wiki.owner.canonical_name}}</a>/<wbr><a
+       href="{{ url_for("html.user_content",
+       owner_name=wiki.owner.username, wiki_name=wiki.name) }}"
+    >{{wiki.name}}</a>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+<div class="container">
+  <div class="content">
+    {{ firstpara }}
+  </div>
+</div>
+{% if frontmatter.get("toc", True) and len(toc) != 0 %}
+<div class="container">
+  <div class="event-list row">
+    <div class="event toc col-md-12">
+      <h3>Table of Contents</h3>
+      <ol>
+        {% macro toc_entry(entry, depth) %}
+        <li>
+          <a href="#{{ entry.id }}">{{ entry.name }}</a>
+          {% if len(entry.children) > 0 %}
+          <ul style="list-style: none; padding-left: {{ depth + 1 }}rem">
+            {% for child in entry.children %}
+              {{ toc_entry(child, depth + 1) }}
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </li>
+        {% endmacro %}
+        {% for entry in toc %}
+          {{ toc_entry(entry, 0) }}
+        {% endfor %}
+      </ol>
+      {# TODO
+      <div class="pull-right" style="margin-bottom: 1rem">
+        <a href="#">Edit page</a>
+      </div>
+      #}
+    </div>
+  </div>
+</div>
+{% endif %}
+<div class="container" style="flex-grow: 1">
+  <div class="content">
+    {{ content }}
+  </div>
+</div>
+<div class="container">
+  <h3>About this wiki</h3>
+  <div class="row">
+    <div class="col-md-8">
+      <pre>commit <a
+href="{{web_url}}/commit/{{commit.id}}"
+>{{ commit.id }}</a>
+Author: {{ commit.author.name }} &lt;{{ commit.author.email }}&gt;
+Date:   {{ commit.author.time }}
+
+{{ commit.message.rstrip("\n") }}</pre>
+      <dl>
+        <dt><strong>Clone this wiki</strong>{{" (\"" ~ wiki.repo_ref ~ "\" branch)"}}</dt>
+        <dd>
+          {% set clone_urls = git_clone_urls(repo) %}
+          <a href={{ clone_urls.https }}>{{ clone_urls.https }}</a>
+          <span class="text-muted pull-right">(read-only)</span><br />
+          {{clone_urls.ssh}}
+          <span class="text-muted pull-right">(read/write)</span><br />
+        </dd>
+      </dl>
+    </div>
+    <div class="col-md-4">
+      {% if current_user %}
+        {% if is_root %}
+        <a
+          href="{{ url_for("create.create_GET") }}"
+          class="btn btn-primary btn-block"
+        >Create a wiki {{icon("caret-right")}}</a>
+        {% endif %}
+        {% if wiki and wiki.owner.username == current_user.username %}
+        <a
+          href="{{ url_for("manage.info",
+            owner_name=wiki.owner.canonical_name, wiki_name=wiki.name) }}"
+          class="btn btn-default btn-block"
+        >Settings for this wiki {{icon('caret-right')}}</a>
+        {% endif %}
+        <a
+          href="{{ url_for("public.user_index",
+            username=current_user.username) }}"
+          class="btn btn-default btn-block"
+        >Browse your wikis {{icon('caret-right')}}</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

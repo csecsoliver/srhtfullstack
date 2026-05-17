@@ -1,0 +1,212 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>
+  {{ ticket.ref() }}: {{ ticket.title }}
+  &mdash;
+  {{ cfg("sr.ht", "site-name") }} todo
+</title>
+{% endblock %}
+{% block body %}
+<div class="container">
+  <h2 class="ticket-title">
+    <div>
+      <a href="{{ tracker.owner|user_url }}"
+        >{{ tracker.owner }}</a>/<a href="{{ tracker|tracker_url }}"
+        >{{ tracker.name }}</a>#{{ ticket.scoped_id }}<span
+          class="d-none d-md-inline">:</span>&nbsp;
+    </div>
+    <div id="title-field">
+      {{ticket.title}}
+    </div>
+  </h2>
+</div>
+<div class="header-tabbed">
+  {% if not tracker_sub %}
+  <form method="POST" action="{{url_for("ticket." +
+      ("disable_notifications" if ticket_sub else "enable_notifications"),
+      owner=tracker.owner.canonical_name,
+      name=tracker.name,
+      ticket_id=ticket.scoped_id)}}"
+    class="container"
+  >
+    {{csrf_token()}}
+  {% else %}
+  <div class="container">
+  {% endif %}
+    <ul class="nav nav-tabs">
+      <li class="nav-item">
+        <a href="{{ ticket|ticket_url }}"
+          class="nav-link active">view</a>
+      </li>
+      {% if TicketAccess.EDIT in access %}
+      <li class="nav-item">
+        <a href="{{ ticket|ticket_edit_url }}"
+          class="nav-link">edit</a>
+      </li>
+      {% endif %}
+      <li class="flex-grow-1 d-none d-md-block"></li>
+      <li class="nav-item">
+        {% if current_user %}
+        <button
+          class="nav-link active"
+          {% if tracker_sub %}
+          title="you are subscribed to all activity on this tracker"
+          disabled
+          {% else %}
+          type="submit"
+          {% endif %}
+        >
+          {{icon("envelope-o")}}
+          {% if ticket_sub or tracker_sub %}
+          Disable notifications
+          {% else %}
+          Enable notifications
+          {% endif %}
+          {{icon("caret-right")}}
+        </button>
+        {% else %}
+        <a class="nav-link active" href="{{ ticket_subscribe }}">
+          {{icon("envelope-o")}}
+          Subscribe
+          {{icon("caret-right")}}
+        </a>
+        {% endif %}
+      </li>
+    </ul>
+  {% if not tracker_sub %}
+  </form>
+  {% else %}
+  </div>
+  {% endif %}
+</div>
+<div class="container">
+  <div class="row">
+    <div class="col-md-6">
+      {% if ticket.description %}
+      <div id="description-field">
+        {{ ticket|render_ticket_description }}
+      </div>
+      {% endif %}
+    </div>
+    <div class="col-md-6">
+      <dl class="row">
+        <dt class="col-md-3">Status</dt>
+        <dd class="col-md-9">
+          <strong id="status-field" class="text-success">
+            {{ ticket.status.name.upper() }}
+            {% if ticket.status == TicketStatus.RESOLVED %}
+            {{ ticket.resolution.name.upper() }}
+            {% endif %}
+          </strong>
+        </dd>
+        <dt class="col-md-3">Submitter</dt>
+        <dd class="col-md-9">
+          <a
+            id="submitter-field"
+            href="{{ ticket.submitter|participant_url }}"
+          >{{ ticket.submitter }}</a>
+          {% if ticket.authenticity == Authenticity.UNAUTHENTICATED %}
+          <span
+            class="text-danger"
+            title="This ticket was imported from an external source and its authenticity cannot be guaranteed."
+          >(unverified)</span>
+          {% elif ticket.authenticity == Authenticity.TAMPERED %}
+          <span
+            class="text-danger"
+            title="This ticket has been edited by a third party - its contents are not genuine."
+          >(edited)</span>
+          {% endif %}
+        </dd>
+        <dt class="col-md-3">Assigned to</dt>
+        <dd id="assignee-field" class="col-md-9">
+          {% for assignee in ticket.assigned_users %}
+          <div class="row">
+            <div class="col">
+              <a href="{{ assignee|user_url }}">{{ assignee }}</a>
+            </div>
+          </div>
+          {% endfor %}
+          {% if not ticket.assigned_users %}
+          No-one
+          {% endif %}
+        </dd>
+        <dt class="col-md-3">Submitted</dt>
+        <dd id="submitted-field" class="col-md-9">
+        {{ ticket.created | date }}</dd>
+        <dt class="col-md-3">Updated</dt>
+        <dd id="updated-field" class="col-md-9">
+        {{ ticket.updated | date }}</dd>
+        <dt class="col-md-3">Labels</dt>
+        <dd id="labels-field" class="col-md-9">
+          {% for label in ticket.labels %}
+            {{ label|label_badge }}
+          {% else %}
+            No labels applied.
+          {% endfor %}
+        </dd>
+      </dl>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-12 event-list ticket-events">
+      <h3 id="edit">Edit comment</h3>
+      <div class="event">
+        <h4>
+          <a
+            href="{{ comment.submitter|participant_url }}"
+          >{{ comment.submitter }}</a>
+          {% if comment.authenticity == Authenticity.UNAUTHENTICATED %}
+          <span
+            class="text-danger"
+            title="This comment was imported from an external source and its authenticity cannot be guaranteed."
+          >(unverified)</span>
+          {% elif comment.authenticity == Authenticity.TAMPERED %}
+          <span
+            class="text-danger"
+            title="This comment has been edited by a third party."
+          >(edited)</span>
+          {% endif %}
+          <span class="pull-right">
+            <small>
+              {{ comment.created | date }}
+            </small>
+          </span>
+        </h4>
+        <form style="margin-top: 1rem" method="POST">
+          {{csrf_token()}}
+          <div class="form-group">
+            <textarea
+              dir="auto"
+              class="form-control {{valid.cls('text')}}"
+              name="text"
+              rows="5"
+            >{{text or comment.text}}</textarea>
+            {{valid.summary("text")}}
+          </div>
+          <button
+            id="comment-submit"
+            type="submit"
+            class="btn btn-primary"
+          >Submit {{icon("caret-right")}}</button>
+          <button
+            type="submit"
+            name="preview"
+            value="true"
+            class="btn btn-default"
+          >Preview {{icon("caret-right")}}</button>
+        </form>
+      </div>
+
+      {% if rendered_preview %}
+      <div class="event preview">
+        <span class="preview-tag">Comment preview</span>
+        <a href="{{ current_user|user_url }}">{{ current_user }}</a>
+        <blockquote>
+          {{ rendered_preview }}
+        </blockquote>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

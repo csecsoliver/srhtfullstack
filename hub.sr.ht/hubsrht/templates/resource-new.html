@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="header-tabbed">
+  <div class="container">
+    <h2>
+      <a
+        href="{{url_for("users.summary_GET", username=owner.username)}}"
+      >{{owner.canonical_name}}</a>/<wbr>{{project.name}}
+    </h2>
+    {% macro link(path, title, alternates, cls="") %}
+    <a
+      class="nav-link {% if view == title or view in alternates %}active{% endif %} {{cls}}"
+      href="{{ path }}">{{ title }}</a>
+    {% endmacro %}
+    <ul class="nav nav-tabs">
+      <li class="nav-item">
+        <a
+          class="nav-link"
+          href="{{url_for("projects.summary_GET",
+            owner=owner.canonical_name, project_name=project.name)}}"
+        >{{icon('caret-left')}}&nbsp;cancel</a>
+      </li>
+    </ul>
+  </div>
+</div>
+<div class="container">
+  {% block content %}
+  {% endblock %}
+</div>
+{% endblock %}

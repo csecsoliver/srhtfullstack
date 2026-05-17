@@ -1,0 +1,321 @@
+query GetBillingDashboard {
+  me {
+    subscription {
+      status
+      updated
+      interval
+      autorenew
+      currency
+      subtotal
+      total
+
+      product {
+        retired
+      }
+
+      payment {
+        status
+        error
+      }
+    }
+
+    methods: paymentMethods {
+      id
+      name
+      created
+      expires
+    }
+
+    defaultMethod: defaultPaymentMethod {
+      id
+    }
+
+    address: billingAddress {
+      ...billingAddress
+    }
+
+    invoices {
+      results { ...invoice }
+    }
+  }
+}
+
+query GetBillingAddress {
+  me {
+    billingAddress {
+      ...billingAddress
+    }
+  }
+}
+
+mutation UpdateBillingAddress($address: BillingAddressInput!) {
+  updateBillingAddress(input: $address) {
+    country
+  }
+}
+
+query GetBillingSetup {
+  products { ...product }
+
+  user: me {
+    paymentDue
+    paymentStatus
+
+    invoices {
+      results { id }
+    }
+
+    billingAddress { ...billingAddress }
+  }
+}
+
+mutation OrderProduct(
+  $productID: Int!
+  $currency: Currency!,
+  $address: BillingAddressInput!,
+  $interval: PaymentInterval!,
+  $idempotencyKey: String,
+) {
+  intent: orderProductSubscription(
+    productID: $productID,
+    currency: $currency,
+    address: $address,
+    interval: $interval,
+    idempotencyKey: $idempotencyKey,
+    autorenew: true,
+  ) { ...paymentIntent }
+}
+
+mutation FinalizePaymentIntent($intentID: String!) {
+  intent: finalizePaymentIntent(intentID: $intentID) {
+    id
+    outcome {
+      status
+      error
+    }
+  }
+}
+
+query GetPaymentOutcome {
+  me {
+    subscription {
+      payment {
+        status
+        error
+      }
+    }
+  }
+}
+
+query GetSetupIntentDetail {
+  me {
+    paymentStatus
+
+    subscription {
+      id
+      autorenew
+      currency
+      interval
+      subtotal
+
+      product {
+        name
+      }
+
+      price {
+        currency
+        amount
+      }
+    }
+
+    billingAddress { ...billingAddress }
+  }
+}
+
+mutation CreateSetupIntent {
+  intent: createSetupIntent {
+    id
+    ... on StripeSetupIntent {
+      publicKey
+      clientSecret
+    }
+  }
+}
+
+mutation CreateRenewalPaymentIntent(
+  $subscriptionID: Int!,
+  $idempotencyKey: String,
+) {
+  intent: beginSubscriptionRenewal(
+    subscriptionID: $subscriptionID,
+    idempotencyKey: $idempotencyKey,
+  ) { ...paymentIntent }
+}
+
+mutation FinalizeSetupIntent($intentID: String!) {
+  result: finalizeSetupIntent(intentID: $intentID) { status }
+}
+
+mutation RemovePaymentMethod($methodID: Int!) {
+  deletePaymentMethod(id: $methodID) { id }
+}
+
+mutation SetDefaultPaymentMethod($methodID: Int!) {
+  setDefaultPaymentMethod(id: $methodID) { id }
+}
+
+query GetProductSelection {
+  me {
+    paymentStatus
+    paymentDue
+
+    subscription {
+      autorenew
+      currency
+      status
+      updated
+
+      product {
+        retired
+      }
+    }
+  }
+
+  products { ...product }
+}
+
+mutation ChangeProduct(
+  $subID: Int!,
+  $productID: Int!,
+  $interval: PaymentInterval!,
+) {
+  updateBillingSubscription(
+    subscriptionID: $subID,
+    input: {
+      productID: $productID,
+      interval: $interval,
+    },
+  ) { id }
+}
+
+query GetCancelParameters {
+  me {
+    paymentStatus
+    paymentDue
+
+    subscription {
+      status
+      updated
+
+      product {
+        retired
+      }
+    }
+  }
+}
+
+mutation CancelSubscription($subscriptionID: Int!) {
+  cancelBillingSubscription(subscriptionID: $subscriptionID) {
+    id
+  }
+}
+
+query GetInvoices($cursor: Cursor) {
+  me {
+    invoices(cursor: $cursor) {
+      cursor
+      results { ...invoice }
+    }
+  }
+}
+
+# meta.sr.ht-daily
+mutation ProcessPaymentDue {
+  intent: processPaymentDue {
+    id
+    outcome {
+      status
+      error
+    }
+  }
+}
+
+# Some additional details needed change-product and cancellation
+query GetSubscriptionParameters {
+  me {
+    paymentStatus
+    paymentDue
+    subscription { id }
+  }
+}
+
+# Fields required for partials/edit-address.html
+fragment billingAddress on BillingAddress {
+  fullName
+  businessName
+  address1
+  address2
+  city
+  region
+  postcode
+  country
+  vat
+}
+
+# Fields required for partials/invoice.html
+fragment invoice on Invoice {
+  id
+  invoiceNo
+  issued
+  serviceEnd
+  total
+  currency
+}
+
+# Fields required for partials/product-list.html
+fragment product on Product {
+  id
+  name
+  subsidized
+
+  prices {
+    currency
+    amount
+  }
+}
+
+# Fields required for billing-payment-intent.html
+fragment paymentIntent on PaymentIntent {
+  subscription {
+    user {
+      paymentStatus
+    }
+
+    currency
+    interval
+
+    product {
+      id
+      name
+    }
+
+    price {
+      currency
+      amount
+    }
+
+    subtotal
+  }
+
+  billingAddress { ...billingAddress }
+
+  idempotencyKey
+  taxRate
+  taxDue
+  totalDue
+
+  ... on StripePaymentIntent {
+    publicKey
+    clientSecret
+  }
+}

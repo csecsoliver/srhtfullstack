@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+
+{% block head %}
+{% if rss_feed %}
+<link rel="alternate" title="{{ rss_feed['title'] }}" type="application/rss+xml" href="{{ rss_feed['url'] }}">
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<section class="row">
+  <div class="col-md-4">
+    {% include sidebar %}
+  </div>
+  <div class="col-md-8">
+    <hr class="d-md-none" />
+    {% if breadcrumbs %}
+    <h3>
+    {% for crumb in breadcrumbs %}<a
+     href="/~{{ user.username if user else current_user.username }}{{ crumb['url'] }}"
+    >{{ crumb['name'] }}</a>{% if not loop.last %}/{% endif %}{% endfor %}
+    </h3>
+    {% endif %}
+    <div class="event-list">
+      <form>
+        <input
+          name="search"
+          type="text"
+          placeholder="Search jobs... status:failed image:bsd tags:sr.ht"
+          class="form-control{% if search_error %} is-invalid{% endif %}"
+          value="{{ search if search else "" }}" />
+        {% if search_error %}
+          <div class="invalid-feedback">{{ search_error }}</div>
+        {% endif %}
+      </form>
+      {% for job in jobs %}
+      <div class="event">
+        <h3>
+          <a href="/~{{ job.owner.username }}/job/{{ job.id }}">#{{ job.id }}</a>
+          <small>
+            <a
+              href="/~{{ job.owner.username }}"
+            >~{{ job.owner.username }}</a>{% for tag in tags(job.tags) %}/<a
+               href="/~{{ job.owner.username }}{{ tag['url'] }}"
+            >{{ tag['name'] }}</a>{% endfor %}
+          </small>
+          <small class="pull-right d-none d-md-inline">
+            <span>
+              {{ job.updated | date }}
+            </span>
+            <span class="{{ status_map.get(job.status) or "" }}">
+              {{icon(icon_map.get(job.status), cls=status_map.get(job.status, ""))}}
+              {{ job.status.value }}
+            </span>
+          </small>
+        </h3>
+        {% if job.status != JobStatus.pending and job.status != JobStatus.queued %}
+        {% endif %}
+        {% if job.note %}
+          <p>{{ job.note | md }}</p>
+        {% endif %}
+        {% for task in sort_tasks(job.tasks) %}
+          <span class="status" title="{{ task.status.value }}">
+            {{icon(icon_map.get(task.status), cls=status_map.get(task.status, ""))}}
+            {{task.name}}
+          </span>
+        {% endfor %}
+        <p class="d-md-none">
+          <span class="{{ status_map.get(job.status) or "" }}">
+            {{icon(icon_map.get(job.status), cls=status_map.get(job.status, ""))}}
+            {{ job.status.value }}
+          </span>
+          {{ job.updated | date }}
+        </p>
+      </div>
+      {% endfor %}
+    </div>
+    {{pagination()}}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,91 @@
+<h2>
+  <a
+    href="{{url_for("users.summary_GET", username=owner.username)}}"
+  >{{owner.canonical_name}}</a>/<wbr>{{project.name}}
+</h2>
+{% macro link(path, title, alternates=[], cls="") %}
+<a
+  class="nav-link {% if view == title or view in alternates %}active{% endif %} {{cls}}"
+  href="{{ path }}">{{ title }}</a>
+{% endmacro %}
+<ul class="nav nav-tabs">
+  {% if project.visibility.value != "PUBLIC" %}
+  <li
+    class="nav-item nav-text vis-{{project.visibility.value.lower()}}"
+    {% if project.visibility.value == "UNLISTED" %}
+    title="This project is only visible to those who know the URL."
+    {% elif project.visibility.value == "PRIVATE" %}
+    title="This project is only visible to those who were invited to view it."
+    {% endif %}
+  >
+    {% if project.visibility.value == "UNLISTED" %}
+    Unlisted
+    {% elif project.visibility.value == "PRIVATE" %}
+    Private
+    {% endif %}
+  </li>
+  {% endif %}
+  <li class="nav-item">
+    {{link(url_for("projects.summary_GET",
+      owner=owner.canonical_name,
+      project_name=project.name), "summary")}}
+  </li>
+  {% if project.website %}
+  <li class="nav-item">
+    <a
+      class="nav-link"
+      href="{{project.website}}"
+      rel="noopener nofollow"
+    >website&nbsp;{{icon('external-link-alt')}}</a>
+  </li>
+  {% endif %}
+  {% if any(project.source_repos) %}
+  <li class="nav-item">
+  {% if len(project.source_repos) == 1 and
+        not (current_user and current_user.id == project.owner_id) %}
+    {{link(project.source_repos[0].url(), "source")}}
+  {% else %}
+    {{link(url_for("sources.sources_GET",
+      owner=owner.canonical_name,
+      project_name=project.name), "sources")}}
+  {% endif %}
+  </li>
+  {% endif %}
+  {% if any(project.mailing_lists) %}
+  <li class="nav-item">
+  {% if len(project.mailing_lists) == 1 and
+        not (current_user and current_user.id == project.owner_id) %}
+    {{link(project.mailing_lists[0].url(), "mailing list")}}
+  {% else %}
+    {{link(url_for("mailing_lists.lists_GET",
+      owner=owner.canonical_name,
+      project_name=project.name), "mailing lists")}}
+  {% endif %}
+  </li>
+  {% endif %}
+  {% if any(project.trackers) %}
+  <li class="nav-item">
+  {% if len(project.trackers) == 1 and
+        not (current_user and current_user.id == project.owner_id) %}
+    {{link(project.trackers[0].url(), "tickets")}}
+  {% else %}
+    {{link(url_for("trackers.trackers_GET",
+      owner=owner.canonical_name,
+      project_name=project.name), "tickets")}}
+  {% endif %}
+  </li>
+  {% endif %}
+  {# TODO
+  <li class="nav-item">
+    {{link("#", "documentation")}}
+  </li>
+  #}
+  {% if current_user and current_user.id == owner.id %}
+  <li class="flex-grow-1"></li>
+  <li class="nav-item">
+    {{link(url_for("projects.config_GET",
+      owner=owner.canonical_name, project_name=project.name), "more +",
+      alternates=["add more"])}}
+  </li>
+  {% endif %}
+</ul>

@@ -1,0 +1,34 @@
+{% extends "resource-list.html" %}
+{% block resource_list %}
+{% if not any(sources) %}
+<div class="alert alert-info">
+  This project has no public sources.
+</div>
+{% endif %}
+{% for repo in sources %}
+<div class="event">
+  <h4>
+    <a href="{{repo.url()}}">{{repo.owner.canonical_name}}/{{repo.name}}</a>
+    <small class="pull-right">
+      {{ repo.repo_type.value }}
+    </small>
+  </h4>
+  {% if repo.description %}
+  <p>{{ repo.description }}</p>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block sidebar %}
+<a
+  href="{{url_for("sources.new_GET", owner=owner.canonical_name,
+    project_name=project.name)}}"
+  class="btn btn-primary btn-block"
+>Add repository&nbsp;{{icon('caret-right')}}</a>
+<a
+  href="{{url_for("sources.manage_GET", owner=owner.canonical_name,
+    project_name=project.name)}}"
+  class="btn btn-default btn-block"
+>Manage sources&nbsp;{{icon('caret-right')}}</a>
+{% endblock %}

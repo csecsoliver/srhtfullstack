@@ -1,0 +1,135 @@
+{% extends "meta.html" %}
+
+{% set sub = intent.subscription %}
+{% set product = sub.product %}
+{% set price = sub.price %}
+
+{% block title %}
+<title>Complete subscription payment - {{cfg("sr.ht", "site-name")}}</title>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let product = {
+  id: {{product.id}},
+  name: "{{product.name}}",
+  price: {
+    currency: "{{price.currency.value}}",
+    amount: {{price.amount}},
+  }
+};
+let billingDetails = {
+  email: "{{current_user.email}}",
+  {% if intent.billing_address.full_name %}
+  name: "{{intent.billing_address.full_name}}",
+  {% endif %}
+  address: {
+    country: "{{intent.billing_address.country.alpha2}}",
+    {% if intent.billing_address.address_1 %}
+    line1: "{{intent.billing_address.address_1}}",
+    {% endif %}
+    {% if intent.billing_address.address_2 %}
+    line2: "{{intent.billing_address.address_2}}",
+    {% endif %}
+    {% if intent.billing_address.city %}
+    city: "{{intent.billing_address.city}}",
+    {% endif %}
+    {% if intent.billing_address.postcode %}
+    postal_code: "{{intent.billing_address.postcode}}",
+    {% endif %}
+  },
+};
+let return_url = "{{root}}{{url_for('billing.validate_payment_GET')}}";
+window.stripePubkey = "{{intent.public_key}}";
+window.stripeClientSecret = "{{intent.client_secret}}";
+</script>
+<script src="https://js.stripe.com/v3/"></script>
+<script src="/static/meta.sr.ht/payment-intent.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-7">
+    <h3>Payment details</h3>
+  </div>
+</div>
+
+<form class="row">
+  <div class="col-md-7">
+    <div id="payment-details"></div>
+    <button
+      id="submit"
+      class="btn btn-primary pull-right"
+    >Submit payment {{icon('caret-right')}}</button>
+  </div>
+
+  <div class="col-md-5 products">
+    <div class="product">
+      <h3>{{product.name}}</h3>
+      <p class="desc">
+        Includes access to all features.
+      </p>
+      <div class="price">
+        {% if sub.interval == PaymentInterval.MONTHLY %}
+        {{sym}}{{"{:.02f}".format(intent.total_due / 100)}}/month
+        {% else %}
+        {{sym}}{{"{:.02f}".format(intent.total_due / 100)}}/year
+        {% endif %}
+      </div>
+      {% if intent.tax_rate %}
+      <table class="table">
+        <tr>
+          <th>Subtotal</th>
+          <td>{{sym}}{{"{:.02f}".format(sub.subtotal / 100)}}</td>
+        </tr>
+        <tr>
+          <th>
+            VAT ({{"{:.1f}".format(intent.tax_rate * 100)}}%)
+          </th>
+          <td>{{sym}}{{"{:.02f}".format(intent.tax_due / 100)}}</td>
+        </tr>
+        <tr>
+          <th>Total due</th>
+          <td>{{sym}}{{"{:.02f}".format(intent.total_due / 100)}}</td>
+        </tr>
+      </table>
+      {% endif %}
+    </div>
+
+    <div>
+      {{icon('exclamation-circle')}} <strong>Important notices</strong>
+      <ul>
+        <li>
+          At the end of your selected term, your renewal payment will be
+          automatically charged to the payment method you have on file. You can
+          cancel automatic renewal at any time.
+        </li>
+        <li>
+          In accordance with European regulations, your billing records are
+          retained for up to 7 years, even if you delete your account.
+        </li>
+        <li>
+          See the
+          <a
+            href="https://man.sr.ht/terms.md"
+            target="_blank"
+          >terms of service</a> for
+          more details.
+        </li>
+      </ul>
+    </div>
+  </div>
+</form>
+{% if sub.user.payment_status == "DELINQUENT" %}
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    <div class="alert alert-warning">
+      <strong>Notice:</strong> Your account is past due. You will immediately
+      be charged the outstanding balance of
+      {{sym}}{{"{:.0f}".format(intent.total_due / 100)}} once you have provided your
+      payment details.
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

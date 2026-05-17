@@ -1,0 +1,44 @@
+image: fedora/latest
+packages:
+  - e2fsprogs
+  - qemu-system-x86
+  - qemu-img
+  - rsync
+sources:
+  - https://git.sr.ht/~sircmpwn/builds.sr.ht
+environment:
+  arch: x86_64
+  release: "31"
+  slaves:
+    - deploy@fra01.builds.sr.ht
+    - deploy@fra02.builds.sr.ht
+    - deploy@rsync.builds.sr.ht
+secrets:
+  - fa00a8d3-7b63-42d5-8060-3bb31c3e3018
+triggers:
+  - action: email
+    condition: failure
+    to: ~sircmpwn/sr.ht-image-failures@lists.sr.ht
+    cc: Timothée Floure <timothee.floure@posteo.net>, Haowen Liu <lhw@lunacd.com>
+tasks:
+  - genimg: |
+      cd builds.sr.ht
+      cd images/fedora/$release
+      sudo ./genimg $arch
+  - sanity-check: |
+      cd builds.sr.ht
+      sudo chown build:build /dev/kvm
+      MEMORY=1024 ./images/control fedora/$release sanity-check
+  - deploy: |
+      cd builds.sr.ht/images/fedora/$release
+      echo "StrictHostKeyChecking=no" >>~/.ssh/config
+      chmod 600 ~/.ssh/config
+      for server in "${slaves[@]}"
+      do
+        ssh $server mkdir -p /var/lib/images/fedora/$release/$arch
+        rsync -rzP $arch/root.img.qcow2 \
+          ${server}:/var/lib/images/fedora/$release/$arch/new_root.img.qcow2
+        ssh $server \
+          mv /var/lib/images/fedora/$release/$arch/new_root.img.qcow2 \
+             /var/lib/images/fedora/$release/$arch/root.img.qcow2
+      done

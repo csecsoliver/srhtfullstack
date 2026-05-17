@@ -1,0 +1,62 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>Privacy settings - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <section class="col-lg-8">
+    <h3>Encryption</h3>
+    <p>
+      {% if pgp_key_id %}
+      All emails sent from {{cfg("sr.ht", "site-name")}} to you are signed with<br />
+      <a href="/privacy/pubkey">{{pgp_key_id}}</a>.
+      {% else %}
+      Emails sent from {{cfg("sr.ht", "site-name")}} are not encrypted. Please contact
+      {{owner.name}} &lt;<a href="mailto:{{owner.email}}">{{owner.email}}</a>&gt;
+      to request PGP signing of emails.
+      {% endif %}
+    </p>
+    {% if any(current_user.pgp_keys) %}
+    <form method="POST" action="/privacy">
+      {{csrf_token()}}
+      <div class="form-check">
+        <label class="form-check-label">
+          <input
+            class="form-check-input"
+            type="radio"
+            name="pgp-key"
+            value="null"
+            {%if current_user.pgp_key_id == None%}checked{%endif%}
+          /> Do not encrypt emails sent to me
+        </label>
+      </div>
+      {% for key in current_user.pgp_keys %}
+      <div class="form-check">
+        <label class="form-check-label">
+          <input
+            class="form-check-input"
+            type="radio"
+            name="pgp-key"
+            value="{{key.id}}"
+            {%if current_user.pgp_key_id == key.id%}checked{%endif%}
+          /> Encrypt with {{key.email}} {{key.fingerprint_hex}}
+        </label>
+      </div>
+      {% endfor %}
+      <button type="submit" class="pull-right btn btn-primary">
+        Save {{icon("caret-right")}}
+      </button>
+    </form>
+    <form method="POST" action="/privacy/test-email" style="clear: both; padding-top: 0.5rem">
+      {{csrf_token()}}
+      <button type="submit" class="pull-right btn btn-default">
+        Send test email {{icon("arrow-right")}}
+      </button>
+    </form>
+    {% elif pgp_key_id %}
+    <p>If you <a href="/keys">add a PGP key</a> to your account, we can encrypt
+    emails to you.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

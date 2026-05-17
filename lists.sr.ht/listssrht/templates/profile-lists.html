@@ -1,0 +1,67 @@
+{% extends "profile.html" %}
+
+{% block title %}
+<title>{{user.canonical_name}}'s mailing lists</title>
+{% endblock %}
+
+{% block sidebar %}
+{% if current_user.id == user.id %}
+<a
+  href="{{url_for("user.create_list_GET")}}"
+  class="btn btn-primary btn-block"
+>Create new list {{icon("caret-right")}}</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if lists or search %}
+<form>
+  <input
+    name="search"
+    type="text"
+    placeholder="Search {{user.canonical_name}}'s mailing lists"
+    class="form-control{% if search_error %} is-invalid{% endif %}"
+    value="{{ search if search else "" }}" />
+  {% if search_error %}
+    <div class="invalid-feedback">{{ search_error }}</div>
+  {% endif %}
+</form>
+{% endif %}
+
+{% if search and not lists %}
+<div class="alert alert-warning">
+  No mailing lists found for "{{search}}".
+</div>
+{% elif not lists %}
+<div class="alert alert-info">
+  This user does not have any mailing lists.
+</div>
+{% endif %}
+
+<div class="event-list">
+  {% for list in lists %}
+  <div class="event">
+    <h4>
+      <a href="{{ url_for("archives.archive",
+          owner_name=list.owner.canonical_name,
+          list_name=list.name
+        ) }}"
+      >{{list.owner.canonical_name}}/{{list.name}}</a>
+      {% if list.visibility != Visibility.PUBLIC %}
+      <small class="pull-right">
+        {{ list.visibility.value.lower() }}
+      </small>
+      {% endif %}
+    </h4>
+    {% if list.description %}
+    {{list.description|md}}
+    {% endif %}
+    {% if list.last_activity %}
+    <span class="text-muted">Last active {{ list.last_activity | date }}</span>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+{{pagination()}}
+{% endblock %}

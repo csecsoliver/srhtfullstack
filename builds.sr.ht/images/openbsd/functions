@@ -1,0 +1,39 @@
+#!/bin/sh
+poweroff_cmd="doas halt -p"
+default_arch=amd64
+
+boot() {
+	case "$arch" in
+		amd64)
+			qemu=qemu-system-x86_64
+			_boot $(cpu_opts x86_64)
+			;;
+		*)
+			echo "Unsupported architecture $arch" >&2
+			exit 1
+			;;
+	esac
+}
+
+install() {
+	port=$1
+	shift 1
+	guest_ssh -p $port build@localhost -- doas pkg_add "$@"
+}
+
+sanity_check() {
+	echo "Booting..."
+	cmd_boot amd64 8022 qemu &
+	trap 'cmd_cleanup 8022' EXIT
+	_wait_boot 8022
+	echo "Testing doas..."
+	guest_ssh -p 8022 build@localhost doas ls -a
+	echo "Testing networking..."
+	guest_ssh -p 8022 build@localhost ftp -o- https://builds.sr.ht
+	echo "Testing pkg_add..."
+	guest_ssh -p 8022 build@localhost doas pkg_add htop
+	echo "Testing git..."
+	guest_ssh -p 8022 build@localhost git --version
+	echo "Everything works!"
+	guest_ssh -p 8022 build@localhost doas halt -p || true
+}

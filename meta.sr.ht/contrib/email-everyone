@@ -1,0 +1,17 @@
+#!/usr/bin/python3
+import sys
+from metasrht.email import send_email
+from metasrht.types import User, UserType
+from srht.config import cfg
+from srht.database import DbSession
+
+db = DbSession(cfg("meta.sr.ht", "connection-string"))
+db.init()
+
+message = sys.stdin.read()
+
+for user in (User.query
+        .filter(User.user_type != UserType.pending)
+        .filter(User.user_type != UserType.suspended)):
+    print(f"Sending to ~{user.username} {user.email}")
+    send_email(user.email, message)

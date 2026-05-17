@@ -1,0 +1,31 @@
+mutation UpdateTracker($id: Int!, $input: TrackerInput!) {
+  tracker: updateTracker(id: $id, input: $input) {
+    name
+    owner {
+      canonicalName
+    }
+  }
+}
+
+mutation RenameTracker($id: Int!, $name: String!) {
+  updateTracker(id: $id, input: {name: $name}) {
+    name
+  }
+}
+
+mutation UpdateTrackerAccess($id: Int!, $input: ACLInput!) {
+  updateTrackerACL(trackerId: $id, input: $input) {
+    browse
+  }
+}
+
+mutation DeleteTracker($id: Int!) {
+  tracker: deleteTracker(id: $id) {
+    id
+    name
+  }
+}
+
+mutation ImportTrackerDump($trackerId: Int!, $dump: Upload!) {
+  importTrackerDump(trackerId: $trackerId, dump: $dump)
+}

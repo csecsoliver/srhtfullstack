@@ -1,0 +1,6 @@
+#!/bin/sh -eu
+arch="${1:-amd64}"
+export netbsd_dist="https://cdn.netbsd.org/pub/NetBSD/NetBSD-9.4/$arch"
+export netbsd_suffix="tar.xz"
+export pkgin_dist="cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/$arch/9.4/All"
+exec ../genimg "$@"

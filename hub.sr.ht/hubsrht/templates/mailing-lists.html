@@ -1,0 +1,36 @@
+{% extends "resource-list.html" %}
+{% block title %}
+<title>{{project.name}} mailing lists</title>
+{% endblock %}
+{% block resource_list %}
+{% if not any(mailing_lists) %}
+<div class="alert alert-info">
+  This project has no public mailing lists.
+</div>
+{% endif %}
+{% for mailing_list in mailing_lists %}
+<div class="event">
+  <h4>
+    <a
+      href="{{mailing_list.url()}}"
+    >{{mailing_list.owner.canonical_name}}/{{mailing_list.name}}</a>
+  </h4>
+  {% if mailing_list.description %}
+  {{ mailing_list.description | md }}
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block sidebar %}
+<a
+  href="{{url_for("mailing_lists.new_GET",
+          owner=owner.canonical_name, project_name=project.name)}}"
+  class="btn btn-primary btn-block"
+>Add mailing list&nbsp;{{icon('caret-right')}}</a>
+<a
+  href="{{url_for("mailing_lists.manage_GET",
+          owner=owner.canonical_name, project_name=project.name)}}"
+  class="btn btn-default btn-block"
+>Manage lists&nbsp;{{icon('caret-right')}}</a>
+{% endblock %}

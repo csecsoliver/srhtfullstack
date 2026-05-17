@@ -1,0 +1,83 @@
+{% macro product_list(cfg, products, show_subsidized=False) %}
+{% set ns = namespace(any_subsidized=False) %}
+{% for p in products %}
+{% if p.subsidized %}
+{% set ns.any_subsidized = True %}
+{% endif %}
+{% endfor %}
+{% if not ns.any_subsidized %}
+{% set show_subsidized = False %}
+{% endif %}
+
+<input type="hidden" id="product_id" name="product_id" />
+{% for product in products %}
+{# Placeholder price; updated by javascript #}
+{% set price = product.prices[0] %}
+{% if not product.subsidized or show_subsidized %}
+<div
+  class="product {% if product.subsidized %}subsidized{% else %}standard-rate{% endif %}"
+  data-productID="{{product.id}}"
+  id="product-{{product.id}}"
+>
+  <h3>{{product.name}}</h3>
+  {% if product.subsidized %}
+  <p class="desc">
+    A reduced-rate plan available to users who cannot pay the standard rates.
+    Includes access to all features.
+  </p>
+  {% else %}
+  <p class="desc">
+    All plans include access to all features.
+  </p>
+  {% endif %}
+  <div>
+    <span
+      class="price"
+      data-productID="{{product.id}}"
+    >
+      ${{"{:.0f}".format(price.amount / 100)}}/month
+    </span>
+    <small class="text-muted">+ tax</small>
+  </div>
+  <button class="btn btn-primary select-product">
+    Continue {{icon('caret-right')}}
+  </button>
+</div>
+{% endif %}
+{% else %}
+<div class="alert alert-warning">
+  <strong>Warning</strong>: No products configured in the database.
+  For development purposes, see contrib/default-products.sql. For
+  production use, see
+  <a href="https://sr.ht/~xenrox/hut">hut</a> admin products -h.
+</div>
+{% endfor %}
+
+{% if show_subsidized %}
+<div class="subsidized hide-after-selection">
+  If the subsidized price is still too much for you, for any reason,
+  including your student or employment status, an unfavorable exchange rate,
+  or any other reasonable cause, you are eligible for financial aid.
+  <a href="mailto:{{cfg('sr.ht', 'owner-email')}}">Email us</a> your username
+  and an explanation of your financial situation to apply.
+</div>
+<div class="event standard-rate hide-after-selection">
+  <p>
+    Too much? Free and subsidized plans are available for users who cannot
+    pay the standard prices.
+  </p>
+
+  <button class="btn btn-default btn-block" id="show-subsidized">
+    Review your options {{icon('caret-right')}}
+  </button>
+</div>
+
+<button
+  class="btn btn-default btn-block subsidized hide-after-selection"
+  id="hide-subsidized"
+  style="margin-top: 1rem"
+>
+  {{icon('caret-left')}} Back to standard pricing
+</button>
+{% endif %}
+{% endmacro %}

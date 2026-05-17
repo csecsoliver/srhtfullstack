@@ -1,0 +1,53 @@
+mutation CreateTracker(
+  $name: String!,
+  $description: String!,
+  $visibility: Visibility!,
+) {
+  tracker: createTracker(
+    name: $name,
+    description: $description,
+    visibility: $visibility,
+  ) {
+    name
+    owner {
+      canonicalName
+    }
+  }
+}
+
+mutation SubmitTicket($trackerId: Int!, $input: SubmitTicketInput!) {
+  ticket: submitTicket(trackerId: $trackerId, input: $input) {
+    id
+
+    tracker {
+      owner {
+        canonicalName
+      }
+      name
+    }
+  }
+}
+
+mutation CreateLabel(
+  $trackerId: Int!,
+  $name: String!,
+  $foregroundColor: String!,
+  $backgroundColor: String!,
+) {
+  createLabel(
+    trackerId: $trackerId,
+    name: $name,
+    foregroundColor: $foregroundColor,
+    backgroundColor: $backgroundColor,
+  ) {
+    id
+  }
+}
+
+mutation UpdateLabel($id: Int!, $input: UpdateLabelInput!) {
+  updateLabel(id: $id, input: $input) { id }
+}
+
+mutation DeleteLabel($id: Int!) {
+  deleteLabel(id: $id) { id }
+}

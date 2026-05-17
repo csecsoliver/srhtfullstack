@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>{{cfg("sr.ht", "site-name")}} hub</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8">
+    <p>
+      Welcome to
+      <a href="{{cfg("sr.ht", "site-info")}}">
+        {{cfg("sr.ht", "site-name")}}</a>,
+      {{cfg("sr.ht", "site-blurb")}}!
+    </p>
+    <p>
+      <a
+        class="btn btn-primary"
+        href="{{get_origin("meta.sr.ht", external=True)}}/register"
+      >Register here {{icon('caret-right')}}</a>
+      or
+      <a href="{{login_url}}">
+        Log in {{icon('caret-right')}}
+      </a>
+      to get started, or check out some of our featured projects:
+    </p>
+  </div>
+</div>
+<div class="row" style="margin-top: 1rem">
+  <div class="col-md-12">
+    <h3>Featured projects</h3>
+    <div class="event-list feature-list">
+      {% for feature in features %}
+      <div class="event">
+        <h5>
+          <span class="text-muted"
+          >{{feature.project.owner.canonical_name}}/</span><a
+            href="{{url_for("projects.summary_GET",
+              owner=feature.project.owner.canonical_name,
+              project_name=feature.project.name)}}"
+          >{{feature.project.name}}</a>
+        </h5>
+        <blockquote>
+          {{feature.summary | md}}
+        </blockquote>
+        {% if feature.project.tags %}
+        <div class="tags">
+        {% for tag in feature.project.tags %}
+          <a href="{{url_for("public.project_index", search="#"+tag)}}"
+             class="tag" rel="nofollow">#{{tag}}</a>
+        {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-4 offset-md-8">
+    <a
+      href="{{url_for("public.project_index")}}"
+      class="btn btn-default btn-block"
+    >More projects {{icon('caret-right')}}</a>
+  </div>
+</div>
+{% endblock %}
+

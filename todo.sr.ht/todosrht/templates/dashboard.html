@@ -1,0 +1,106 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="container dashboard">
+  <div class="row">
+    <div class="col-md-4">
+      {% if user %}
+      <h2>
+        ~{{ user.username }}
+      </h2>
+      {% else %}
+      <p>
+        Welcome back, {{ current_user.username }}!
+        This is your ticket tracking service. Documentation for its use is
+        <a href="https://man.sr.ht/todo.sr.ht">available here</a>.
+      </p>
+      {% endif %}
+      {% if notice %}
+      <div class="alert alert-success">
+        {{ notice }}
+      </div>
+      {% endif %}
+
+      {% if user %}
+      {% if user.location %}
+      <p>{{user.location}}</p>
+      {% endif %}
+      {% if user.url %}
+      <p>
+        <a
+          href="{{user.url}}"
+          target="_blank"
+          rel="me noopener noreferrer nofollow"
+        >{{user.url}}</a>
+      </p>
+      {% endif %}
+      {% if user.bio %}
+      <p>{{user.bio | md}}</p>
+      {% endif %}
+      {% endif %}
+
+      {% if profile and (current_user and user.id == current_user.id) %}
+      <div class="alert alert-info">
+        This is your public profile page.
+      </div>
+      {% elif not user or (current_user and user.id == current_user.id) %}
+      <a
+        style="margin-bottom: 1rem"
+        class="btn btn-primary btn-block"
+        href="{{ url_for("tracker.create_GET") }}"
+      >
+        Create new tracker {{icon("caret-right")}}
+      </a>
+      <details
+        class="prefs"
+        {% if prefs_updated %}
+        open
+        {% endif %}
+      >
+        <summary>User preferences</summary>
+	<form method="POST" action="{{url_for('html.index_POST')}}">
+          {{csrf_token()}}
+            <label class="form-check">
+              <input
+                type="checkbox"
+                name="notify-self"
+                id="notify-self"
+                {{ "checked" if current_user.notify_self }} />
+              Notify me of my own activity
+            </label>
+          <button class="btn btn-primary" type="submit">
+            Apply {{icon("caret-right")}}
+          </button>
+        </form>
+      </details>
+      {% endif %}
+      {% if len(trackers) > 0 %}
+      <h3>{{ tracker_list_msg }}</h3>
+      <div class="tracker-list">
+        {% for tracker in trackers %}
+        <h4>
+          <a href="{{ tracker.owner|user_url }}"
+            >{{ tracker.owner }}</a>/<a href="{{ tracker|tracker_url }}"
+            >{{ tracker.name }}</a>
+        </h4>
+        <span class="text-muted">Last active {{ tracker.updated | date }}</span>
+        {% endfor %}
+      </div>
+      {% if more_trackers %}
+      <a
+        href="{{ url_for("html.trackers_for_user",
+          username=(user or current_user).username) }}"
+        class="btn btn-default btn-block"
+        style="margin-top: 1rem"
+      >View more {{icon("caret-right")}}</a>
+      {% endif %}
+      {% endif %}
+    </div>
+    <div class="col-md-8">
+      <hr class="d-md-none" />
+      <h3>Recent activity</h3>
+      {% include 'events.html' with context %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

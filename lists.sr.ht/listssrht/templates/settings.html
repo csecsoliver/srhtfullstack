@@ -1,0 +1,50 @@
+{% extends "list.html" %}
+{% block title %}
+<title>
+  {{ owner.canonical_name }}/{{ ml.name }} settings &mdash; {{ cfg("sr.ht", "site-name") }} lists
+</title>
+{% endblock %}
+{% block tabs %}
+{% macro link(path, title) %}
+<a
+  class="nav-link {% if view == title %}active{% endif %}"
+  href="{{ path }}">{{ title }}</a>
+{% endmacro %}
+<ul class="nav nav-tabs">
+  <li class="nav-item">
+    <a
+      class="nav-link"
+      href="{{url_for("archives.archive",
+      owner_name=owner.canonical_name,
+      list_name=ml.name)}}"
+    >{{icon('caret-left')}} back</a>
+  </li>
+  <li class="nav-item">
+    {{link(url_for("settings.info_GET",
+      owner_name=owner.canonical_name,
+      list_name=ml.name), "info")}}
+  </li>
+  {% if not ml.mirror_id %}
+  <li class="nav-item">
+    {{link(url_for("settings.access_GET",
+      owner_name=owner.canonical_name,
+      list_name=ml.name), "access")}}
+  </li>
+  <li class="nav-item">
+    {{link(url_for("settings.content_GET",
+      owner_name=owner.canonical_name,
+      list_name=ml.name), "content")}}
+  </li>
+  {% endif %}
+  <li class="nav-item">
+    {{link(url_for("settings.import_export_GET",
+      owner_name=owner.canonical_name,
+      list_name=ml.name), "import/export")}}
+  </li>
+  <li class="nav-item">
+    {{link(url_for("settings.delete_GET",
+      owner_name=owner.canonical_name,
+      list_name=ml.name), "delete")}}
+  </li>
+</ul>
+{% endblock %}

@@ -1,0 +1,12 @@
+-- +brant Up
+ALTER TABLE sshkey
+	ALTER COLUMN key SET NOT NULL,
+	ALTER COLUMN key_type SET NOT NULL,
+	ALTER COLUMN fingerprint SET NOT NULL;
+
+
+-- +brant Down
+ALTER TABLE sshkey
+	ALTER COLUMN key DROP NOT NULL,
+	ALTER COLUMN key_type DROP NOT NULL,
+	ALTER COLUMN fingerprint DROP NOT NULL;

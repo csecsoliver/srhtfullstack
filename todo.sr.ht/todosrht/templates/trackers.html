@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-4">
+      <h2>
+        <a href="{{ user|user_url }}">{{ user }}</a>
+      </h2>
+      {% if user.location %}
+      <p>{{user.location}}</p>
+      {% endif %}
+      {% if user.url %}
+      <p>
+        <a
+          href="{{user.url}}"
+          target="_blank"
+          rel="me noopener noreferrer nofollow"
+        >{{user.url}}</a>
+      </p>
+      {% endif %}
+      {% if user.bio %}
+      <p>{{user.bio | md}}</p>
+      {% endif %}
+    </div>
+    <div class="col-md-8">
+      {% if len(trackers) > 0 %}
+      <form>
+        <input
+          name="search"
+          type="text"
+          dir="auto"
+          placeholder="Search"
+          class="form-control"
+          value="{{ search if search else "" }}" />
+      </form>
+      <div class="event-list">
+        {% for tracker in trackers %}
+        <div class="event">
+          <h4>
+            <a href="{{ user|user_url }}"
+              >{{ user }}</a>/<a href="{{ tracker|tracker_url }}"
+              >{{ tracker.name }}</a>
+          </h4>
+          <span class="text-muted">
+            Last active {{ tracker.updated | date }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      {% if search %}
+      <form>
+        <input
+          name="search"
+          type="text"
+          dir="auto"
+          placeholder="Search"
+          class="form-control"
+          value="{{ search if search else "" }}" />
+      </form>
+      <p>Nothing found.</p>
+      {% else %}
+      <p>This user has no trackers.</p>
+      {% endif %}
+      {% endif %}
+      {{pagination()}}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>{{cfg("sr.ht", "site-name")}} dashboard</title>
+{% endblock %}
+{% block content %}
+{% if notice %}
+<div class="alert alert-info">{{notice}}</div>
+{% endif %}
+<div class="row">
+  <div class="col-md-10 offset-md-1" style="margin-top: 1rem; margin-bottom: 1rem;">
+    <strong>Welcome to {{cfg("sr.ht", "site-name")}}!</strong>
+    <p>
+      {{cfg("sr.ht", "site-name")}} is a collection of tools useful for
+      software development. You're at the project hub now &mdash; you can
+      create software projects here to organize resources from all of these
+      tools under one name.
+    </p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-4 event-list">
+    <div class="event">
+      <h3>List your project</h3>
+      <p>
+        If your software project has a lot of repos, trackers, mailing lists,
+        or other resources, you can organize them into a single project here on
+        the project hub.
+      </p>
+      <a
+        href="{{url_for("projects.create_GET")}}"
+        class="btn btn-primary btn-block"
+      >Create a project {{icon('caret-right')}}</a>
+    </div>
+  </div>
+  <div class="col-md-4 event-list">
+    <div class="event">
+      <h3>Customize your profile</h3>
+      <p>
+        Edit your profile information, update security settings, enable
+        two-factor authentication, and update your billing info on
+        {{cfg("sr.ht", "site-name")}} meta.
+      </p>
+      <a
+        href="{{get_origin("meta.sr.ht", external=True)}}"
+        class="btn btn-default btn-block"
+      >Edit your profile {{icon('caret-right')}}</a>
+    </div>
+  </div>
+  <div class="col-md-4 event-list">
+    <div class="event">
+      <h3>Learn about {{cfg("sr.ht", "site-name")}}</h3>
+      <p>
+        We have tutorials, detailed documentation for every service, API
+        information, support resources, and more at the manual.
+      </p>
+      <a
+        href="{{get_origin("man.sr.ht", external=True, default="https://man.sr.ht")}}"
+        class="btn btn-default btn-block"
+      >Visit the documentation {{icon('caret-right')}}</a>
+    </div>
+  </div>
+</div>
+
+<div class="row" style="margin-top: 1rem">
+  <div class="col-md-12 event-list">
+    <div class="event">
+      <h3>All {{cfg("sr.ht", "site-name")}} services</h3>
+      <p>
+        Each of our services may be used independently. You may prefer to
+        use an ad-hoc approach and group things into projects later.
+      </p>
+      <div class="container service-list">
+        <div class="row" style="margin-top: 1rem">
+          {% set gitsrht = get_origin("git.sr.ht", external=True, default=None) %}
+          {% set hgsrht = get_origin("hg.sr.ht", external=True, default=None) %}
+          {% set todosrht = get_origin("todo.sr.ht", external=True, default=None) %}
+          {% set listssrht = get_origin("lists.sr.ht", external=True, default=None) %}
+          {% set buildsrht = get_origin("builds.sr.ht", external=True, default=None) %}
+          {% set mansrht = get_origin("man.sr.ht", external=True, default=None) %}
+          {% set dispatchsrht = get_origin("dispatch.sr.ht", external=True, default=None) %}
+          {% set pastesrht = get_origin("paste.sr.ht", external=True, default=None) %}
+          {% if gitsrht %}
+          <div class="col-md-4">
+            <a href="{{gitsrht}}" class="btn btn-white btn-block">
+              Git hosting {{icon('caret-right')}}
+            </a>
+          </div>
+          {% endif %}
+          {% if hgsrht %}
+          <div class="col-md-4">
+            <a href="{{hgsrht}}" class="btn btn-white btn-block">
+              Mercurial hosting {{icon('caret-right')}}
+            </a>
+          </div>
+          {% endif %}
+          {% if listssrht %}
+          <div class="col-md-4">
+            <a href="{{listssrht}}" class="btn btn-white btn-block">
+              Mailing lists {{icon('caret-right')}}
+            </a>
+          </div>
+          {% endif %}
+          {% if todosrht %}
+          <div class="col-md-4">
+            <a href="{{todosrht}}" class="btn btn-white btn-block">
+              Bug tracking {{icon('caret-right')}}
+            </a>
+          </div>
+          {% endif %}
+          {% if buildsrht %}
+          <div class="col-md-4">
+            <a href="{{buildsrht}}" class="btn btn-white btn-block">
+              Continuous integration {{icon('caret-right')}}
+            </a>
+          </div>
+          {% endif %}
+          {% if mansrht %}
+          <div class="col-md-4">
+            <a href="{{mansrht}}" class="btn btn-white btn-block">
+              Project wikis {{icon('caret-right')}}
+            </a>
+          </div>
+          {% endif %}
+          {% if dispatchsrht %}
+          <div class="col-md-4">
+            <a href="{{dispatchsrht}}" class="btn btn-white btn-block">
+              Third-party integrations {{icon('caret-right')}}
+            </a>
+          </div>
+          {% endif %}
+          {% if pastesrht %}
+          <div class="col-md-4">
+            <a href="{{pastesrht}}" class="btn btn-white btn-block">
+              Paste code snippets {{icon('caret-right')}}
+            </a>
+          </div>
+          {% endif %}
+          <div class="col-md-4">
+            <a
+              href="{{url_for("public.project_index")}}"
+              class="btn btn-white btn-block"
+            >Find interesting projects {{icon("caret-right")}}</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

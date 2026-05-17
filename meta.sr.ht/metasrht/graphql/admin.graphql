@@ -1,0 +1,44 @@
+query GetUserAdmin {
+  personalAccessTokens { id, comment, issued, expires }
+  oauthClients { id, uuid, name, url }
+  oauthGrants {
+    id
+    issued
+    expires
+    tokenHash
+    client {
+      name
+      url
+      owner {
+        canonicalName
+      }
+    }
+  }
+
+  user: me {
+    subscription {
+      interval
+      subtotal
+      currency
+    }
+
+    invoices {
+      results {
+        # See billing.graphql
+        ... invoice
+      }
+    }
+  }
+}
+
+mutation TransferBillingInfo($from: String!, $to: String!) {
+  user: billingTransfer(from: $from, to: $to) {
+    username
+  }
+}
+
+mutation SubsidizeUser($uid: Int!, $until: Time!) {
+  user: subsidizeUser(userID: $uid, until: $until) {
+    username
+  }
+}

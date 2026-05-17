@@ -1,0 +1,84 @@
+<div class="event-list">
+{% for event in events %}
+{% if event.ticket %}
+  <div class="event">
+    <h4 class="event-header">
+      <a
+        href="{{ event.ticket|ticket_url }}"
+      >#{{event.ticket.scoped_id}}</a>
+      <span>{{ event.ticket.title }}</span>
+      <small>{{ event.created | date }}</small>
+    </h4>
+    <p>
+    {% if EventType.CREATED in event.event_type %}
+      Ticket created by <a
+        href="{{ event.ticket.submitter|participant_url }}"
+      >{{ event.ticket.submitter }} </a>
+    {% elif EventType.COMMENT in event.event_type %}
+      Comment by <a
+        href="{{ event.comment.submitter|participant_url }}"
+      >{{ event.comment.submitter }}</a>
+    {% elif EventType.LABEL_ADDED in event.event_type %}
+      {{ event.label|label_badge(cls="small") }} added by
+      <a href="{{ event.participant|participant_url }}">{{ event.participant }}</a>
+    {% elif EventType.LABEL_REMOVED in event.event_type %}
+      {{ event.label|label_badge(cls="small") }} removed by
+      <a href="{{ event.participant|participant_url }}">{{ event.participant }}</a>
+    {% elif EventType.ASSIGNED_USER in event.event_type %}
+      <a
+        href="{{event.by_participant|participant_url}}"
+      >{{event.by_participant}}</a>
+      assigned
+      <a
+        href="{{event.participant|participant_url}}"
+      >{{event.participant}}</a>
+      to #{{event.ticket.scoped_id}}
+    {% elif EventType.UNASSIGNED_USER in event.event_type %}
+      <a
+        href="{{event.by_participant|participant_url}}"
+      >{{event.by_participant}}</a>
+      unassigned
+      <a
+        href="{{event.participant|participant_url}}"
+      >{{event.participant}}</a>
+      from #{{event.ticket.scoped_id}}
+    {% endif %}
+    {% with tracker=event.ticket.tracker %}
+      on <a
+       href="{{ tracker.owner|user_url }}"
+      >{{ tracker.owner }}</a>/<a
+       href="{{ tracker|tracker_url }}"
+      >{{ tracker.name }}</a>
+    {% endwith %}
+    </p>
+    <blockquote>
+      {% if event.comment %}
+      {{ event.comment.text | md }}
+      {% elif EventType.CREATED in event.event_type
+        and event.ticket.description %}
+      {{ event.ticket.description | md }}
+      {% endif %}
+    </blockquote>
+    {% if EventType.STATUS_CHANGE in event.event_type %}
+    <p>
+      <strong class="text-success">
+        {{ event.old_status.name.upper() }}
+        {% if event.old_status == TicketStatus.RESOLVED %}
+        {{ event.old_resolution.name.upper() }}
+        {% endif %}
+      </strong>
+      {{icon("arrow-right", cls="sm")}}
+      <strong class="text-success">
+        {{ event.new_status.name.upper() }}
+        {% if event.new_status == TicketStatus.RESOLVED %}
+        {{ event.new_resolution.name.upper() }}
+        {% endif %}
+      </strong>
+    </p>
+    {% endif %}
+  </div>
+{% endif %}
+{% else %}
+  <p>Nothing here yet!</p>
+{% endfor %}
+</div>

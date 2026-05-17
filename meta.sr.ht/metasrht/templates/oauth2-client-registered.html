@@ -1,0 +1,33 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>OAuth 2.0 client registered - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    {% if not client_reissued %}
+    <h3>OAuth 2.0 client registered</h3>
+    {% else %}
+    <h3>OAuth 2.0 client reissued</h3>
+    <p>
+      Your OAuth client has been issued new credentials. All previously issued
+      bearer tokens have been revoked. You must send users back through the
+      authorization process to restore access.
+    </p>
+    {% endif %}
+    <dl>
+      <dt>Client ID</dt>
+      <dd><textarea readonly class="width-full" rows="1">{{client_uuid}}</textarea></dd>
+      <dt>Client secret</dt>
+      <dd><textarea readonly class="width-full" rows="1">{{client_secret}}</textarea></dd>
+    </dl>
+    <div class="alert alert-danger">
+      Your client secret <strong>will never be shown to you again</strong>.
+    </div>
+    <a
+      href="{{url_for('oauth2.dashboard')}}"
+      class="btn btn-primary"
+    >Continue {{icon('caret-right')}}</a>
+  </div>
+</div>
+{% endblock %}

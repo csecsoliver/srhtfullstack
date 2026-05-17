@@ -1,0 +1,78 @@
+mutation CreateMailingList(
+  $name: String!,
+  $visibility: Visibility!,
+  $description: String,
+) {
+  mailingList: createMailingList(
+    name: $name,
+    visibility: $visibility,
+    description: $description,
+  ) {
+    name
+    owner {
+      canonicalName
+    }
+  }
+}
+
+mutation UpdateMailingList($id: Int!, $input: MailingListInput!) {
+  updateMailingList(id: $id, input: $input) {
+    id
+  }
+}
+
+mutation UpdateMailingListAccess($id: Int!, $input: ACLInput!) {
+  updateMailingListACL(listID: $id, input: $input) {
+    id
+  }
+}
+
+mutation ImportSpool($listID: Int!, $spool: Upload!) {
+  importMailingListSpool(listID: $listID, spool: $spool)
+}
+
+mutation DeleteMailingList($id: Int!) {
+  deleteMailingList(id: $id) { id }
+}
+
+query ExportArchive($owner: String!, $listName: String!) {
+  user(username: $owner) {
+    list(name: $listName) {
+      archive
+      last30days
+    }
+  }
+}
+
+query GetPatchsetThreadBlocks($patchset: Int!) {
+  patchset(id: $patchset) {
+    thread {
+      blocks {
+        key
+        source {
+          id
+        }
+        sourceRange {
+          start
+          end
+        }
+        parentRange {
+          start
+          end
+        }
+      }
+    }
+  }
+}
+
+query GetPreferences {
+  preferences {
+    copySelf
+  }
+}
+
+mutation UpdatePreferences($prefs: PreferencesInput!) {
+  updatePreferences(preferences: $prefs) {
+    copySelf
+  }
+}

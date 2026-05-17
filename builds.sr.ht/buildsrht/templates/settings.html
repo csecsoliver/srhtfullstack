@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="header-tabbed">
+  <div class="container">
+    {% macro link(path, title) %}
+    <a
+      class="nav-link {% if view == title %}active{% endif %}"
+      href="{{ path }}">{{ title }}</a>
+    {% endmacro %}
+    <h2>
+      <a href="{{ url_for("jobs.user", username=job.owner.username) }}">{{ job.owner }}</a>/<wbr
+     >#{{ job.id }}
+    </h2>
+    <ul class="nav nav-tabs">
+      <li class="nav-item">
+        <a class="nav-link"
+         href="{{ url_for("jobs.job_by_id", username=job.owner.username, job_id=job.id) }}"
+        >{{icon("caret-left")}}&nbsp;back</a>
+      </li>
+      <li class="nav-item">
+        {{link(url_for("settings.details_GET",
+          username=job.owner.username,
+          job_id=job.id), "details")}}
+      </li>
+    </ul>
+  </div>
+</div>
+<div class="container">
+  {% block content %}{% endblock %}
+</div>
+{% endblock %}

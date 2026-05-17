@@ -1,0 +1,52 @@
+image: alpine/3.22
+repositories:
+  sr.ht: >
+    https://mirror.sr.ht/alpine/v3.22/sr.ht/
+    https://mirror.sr.ht/alpine/alpine%40sr.ht.rsa.pub
+    alpine@sr.ht.rsa.pub
+packages:
+  - rsync
+  - go
+  - golangci-lint
+sources:
+  - https://git.sr.ht/~sircmpwn/todo.sr.ht
+  - https://git.sr.ht/~sircmpwn/sr.ht-apkbuilds
+environment:
+  project: todo.sr.ht
+  remote: deploy@mirror.sr.ht
+  remote_path: /var/www/mirror.sr.ht/alpine
+  master: deploy@todo.sr.ht
+secrets:
+  - fa00a8d3-7b63-42d5-8060-3bb31c3e3018 # ssh deploy key
+  - d0adc1d4-af78-4852-920f-1134392f5d10 # package signing key
+tasks:
+  - lint: |
+      cd $project
+      make all-bin # to generate all .go files
+      golangci-lint run
+  - archive: |
+      cd $project
+      pkgver=$(~/sr.ht-apkbuilds/pkgkit pkgver)
+      echo "pkgver=$pkgver" >> ~/.buildenv
+      git archive \
+        -o ~/sr.ht-apkbuilds/sr.ht/$project/$project-$pkgver.tar.gz \
+        --prefix=$project-$pkgver/ HEAD
+  - pkgkit: |
+      cd sr.ht-apkbuilds
+      ./pkgkit add-repo -s sr.ht ~/.abuild/alpine@sr.ht.rsa
+      cd sr.ht/$project
+      sed -e 's?::https://git.sr.ht/.*pkgname/.*archive.*??g' -i APKBUILD
+  - package: |
+      cd sr.ht-apkbuilds
+      ./pkgkit build -cuv "$pkgver" "$project"
+      cd ~/$project
+      git describe --exact-match HEAD || complete-build
+  - publish: |
+      cd sr.ht-apkbuilds
+      echo "StrictHostKeyChecking=no" >> ~/.ssh/config
+      ./pkgkit upload "$remote" "$remote_path" "$project"
+  - deploy: |
+      ssh $master doas apk upgrade -Ua
+      ssh $master doas service $project restart
+      ssh $master doas service $project-api restart
+      ssh $master doas service $project-lmtp restart

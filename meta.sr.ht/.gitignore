@@ -1,0 +1,17 @@
+*.pyc
+bin/
+config.ini
+include/
+local/
+lib/
+static/
+*.swp
+*.rdb
+storage/
+pip-selfcheck.json
+.sass-cache/
+overrides/
+.pgp
+meta.sr.ht-api
+api/graph/api/generated.go
+*_gen.go

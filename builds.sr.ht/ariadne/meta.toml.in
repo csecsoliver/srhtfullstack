@@ -1,0 +1,15 @@
+[tool.ariadne-codegen]
+async_client = false
+client_name = "MetaClient"
+schema_path = "@ASSETS@/meta.sr.ht.graphqls"
+queries_path = "buildsrht/meta/"
+target_package_path = "buildsrht/"
+target_package_name = "meta"
+plugins = ["srht.ariadne.AriadnePlugin"]
+
+[tool.ariadne-codegen.sourcehut]
+service_name = "meta.sr.ht"
+
+[tool.ariadne-codegen.scalars.Time]
+type = "datetime.datetime"
+parse = "srht.graphql.gql_time"

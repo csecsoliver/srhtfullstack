@@ -1,0 +1,147 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>OAuth 2.0 - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-12 event-list">
+    <section class="event">
+      <h3>Personal Access Tokens</h3>
+      {% if any(personal_tokens) %}
+      <p>You have issued the following personal access tokens:</p>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Comment</th>
+            <th>Issued</th>
+            <th>Expires</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for token in personal_tokens %}
+          <tr>
+            <td>{{ token.comment }}</td>
+            <td>{{ token.issued | date }}</td>
+            <td>{{ token.expires | date }}</td>
+            <td style="width: 6rem">
+              <a
+                href="{{url_for('oauth2.personal_token_revoke_GET',
+                  token_id=token.id)}}"
+                class="btn btn-danger btn-fill"
+              >Revoke</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p>You have not created any personal access tokens.</p>
+      {% endif %}
+      <a class="btn btn-primary" href="{{url_for('oauth2.personal_token_GET')}}">
+        Generate new token {{icon("caret-right")}}
+      </a>
+    </section>
+    <section class="event">
+      <h3>Authorized Clients</h3>
+      {% if any(oauth_grants) %}
+      <p>You have granted the following third parties access to your account:</p>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Operator</th>
+            <th>Issued</th>
+            <th>Expires</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for grant in oauth_grants %}
+          <tr>
+            <td>
+              <a
+                href="{{grant.client.url}}"
+                rel="noopener"
+              >{{ grant.client.name }}</a>
+              <a
+                href="{{grant.client.url}}"
+                rel="noopener"
+              >{{icon('external-link-alt')}}</a>
+            </td>
+            <td>{{grant.client.owner.canonical_name}}</td>
+            <td>{{grant.issued | date}}</td>
+            <td>{{grant.expires | date}}</td>
+            <td style="width: 6rem">
+              <a
+                href="{{url_for("oauth2.bearer_token_revoke_GET",
+                  token_hash=grant.token_hash)}}"
+                class="btn btn-danger btn-fill"
+              >Revoke</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p>You have not granted any third party clients access to your account.</p>
+      {% endif %}
+    </section>
+    <section class="event">
+      <h3>Registered Clients</h3>
+      {% if client_revoked %}
+      <div class="alert alert-info">
+        Your OAuth client has been unregistered. All bearer tokens issued to
+        your client have been revoked.
+      </div>
+      {% endif %}
+      <p>
+        Please consult our <a
+          href="https://man.sr.ht/meta.sr.ht/oauth.md"
+          rel="noopener"
+        >OAuth 2.0 documentation</a> for information about OAuth clients.
+      </p>
+      {% if any(oauth_clients) %}
+      <p>You have registered the following OAuth clients:</p>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Client ID</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for client in oauth_clients %}
+          <tr>
+            <td>
+              <a
+                href="{{client.url}}"
+                rel="noopener"
+              >{{ client.name }}</a>
+              <a
+                href="{{client.url}}"
+                rel="noopener"
+              >{{icon('external-link-alt')}}</a>
+            </td>
+            <td>{{ client.uuid }}</td>
+            <td style="width: 6rem">
+              <a
+                href="{{url_for('oauth2.manage_client_GET', uuid=client.uuid)}}"
+                class="btn btn-default btn-fill"
+              >Manage {{icon('caret-right')}}</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p>You have not registered any OAuth clients yet.</p>
+      {% endif %}
+      <a class="btn btn-primary" href="{{url_for('oauth2.client_registration_GET')}}">
+        Register new client {{icon("caret-right")}}
+      </a>
+    </section>
+  </div>
+</div>
+{% endblock %}

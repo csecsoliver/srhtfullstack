@@ -1,0 +1,190 @@
+{% extends "settings.html" %}
+{% block title %}
+<title>Configure {{tracker.owner}}/{{tracker.name}} &mdash; {{ cfg("sr.ht", "site-name") }}</title>
+{% endblock %}
+
+{% macro perm_checkbox(type, perms, name, readonly=False) %}
+{% if type.name not in ["none", "all"] %}
+<div class="form-check form-check-inline">
+  <label class="form-check-label" title="{{access_help_map[type]}}">
+    {% if readonly %}
+      {% if type in perms %}
+        {{icon('check', cls='text-success')}}
+      {% else %}
+        <span style="display: inline-block; min-width: 16px;">
+          {{icon('times', cls='text-danger')}}
+        </span>
+      {% endif %}
+      {{type.name}}
+    {% else %}
+      {% if type %}
+        <input
+          class="form-check-input"
+          type="checkbox"
+          name="perm_{{ name }}_{{ type.name }}"
+          value="{{type.value}}"
+          {{ "checked" if type in perms }}> {{type.friendly_name}}
+      {% else %}
+        <input
+          class="form-check-input"
+          type="checkbox"
+          name="perm_{{ name }}_{{ type.name }}"
+          value="{{type.value}}"
+          {{ "checked" if perms == 0 }}> {{type.friendly_name}}
+      {% endif %}
+    {% endif %}
+  </label>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <form method="POST">
+      {{csrf_token()}}
+      <div class="form-group {{valid.cls("tracker_default_access")}}">
+        <p>
+          These permissions allow you to control what kinds of users are able
+          to do what sorts of activities on your tracker.
+        </p>
+        <div class="event-list">
+          <div class="event">
+            <h4>Default Permissions</h4>
+            <p>
+              These permissions are used for anyone who does not have a more
+              specific access configuration.
+            </p>
+            {% for a in access_type_list %}
+            {{ perm_checkbox(a, tracker.default_access, "default") }}
+            {% endfor %}
+            {{ valid.summary("tracker_default_access") }}
+          </div>
+        </div>
+      </div>
+      {{ valid.summary() }}
+      <span class="pull-right">
+        <button type="submit" class="btn btn-primary">
+          Save {{icon("caret-right")}}
+        </button>
+      </span>
+    </form>
+
+    <div class="clearfix"></div>
+
+    <h3>User permissions</h3>
+    <form
+      method="POST"
+      class="form-horizontal"
+      action="{{ url_for("settings.user_access_create_POST",
+          owner=tracker.owner.canonical_name,
+          name=tracker.name) }}"
+    >
+      {{ csrf_token() }}
+      <div class="form-group" style="margin-top: 1rem">
+        <label for="username">Username or email</label>
+        <input
+          type="text"
+          dir="auto"
+          class="form-control {{valid.cls("username")}}"
+          id="username"
+          name="username"
+          placeholder="~{{ current_user.username }}"
+          autocomplete="off"
+          list="user-list"
+          value="{{username or ""}}"
+          required
+        />
+        <datalist id="user-list">
+          {% for u in recent_users %}
+            <option value="~{{ u }}" />
+          {% endfor %}
+        </datalist>
+        {{ valid.summary("username") }}
+      </div>
+
+      <div class="event-list">
+        <div class="event form-group">
+          <h4>Permissions</h4>
+          <p>
+            These settings will override all permissions for a specific user.
+          </p>
+          {% for a in access_type_list %}
+          {{ perm_checkbox(a, TicketAccess.ALL, "user_access") }}
+          {% endfor %}
+          {{ valid.summary("user_access") }}
+        </div>
+      </div>
+
+      <span class="pull-right">
+        <button type="submit" class="btn btn-primary">
+          Add {{icon("caret-right")}}
+        </button>
+      </span>
+    </form>
+
+    {% if tracker.user_accesses %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>user</th>
+          <th>granted</th>
+          <th>access</th>
+          <th style="width: 10%"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user_access in tracker.user_accesses %}
+        <tr>
+          <td>
+            <a
+              href="{{url_for("html.user_GET",
+                username=user_access.user.username)}}"
+            >~{{user_access.user.username}}</a>
+          </td>
+          <td>{{ user_access.created|date }}</td>
+          <td>
+            {% for a in access_type_list %}
+            {{ perm_checkbox(a, user_access.permissions, "user", readonly=True) }}
+            {% endfor %}
+          </td>
+          <td>
+            <form
+              action="{{ url_for("settings.user_access_delete_POST",
+                  owner=tracker.owner.canonical_name,
+                  name=tracker.name,
+                  user_id=user_access.user_id) }}"
+              method="POST"
+              style="margin: 0"
+            >
+              {{ csrf_token() }}
+              <button type="submit" class="btn btn-danger btn-fill">
+                Delete
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript">
+// @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPL-3.0-only
+  {% include "autocomplete.js" %}
+
+  (function() {
+    const input = document.getElementById("username");
+    const list = document.getElementById("user-list");
+    if (input && list) {
+      autocomplete = new UserAutoComplete(input, list);
+      autocomplete.register();
+    }
+  })();
+// @license-end
+</script>
+{% endblock %}

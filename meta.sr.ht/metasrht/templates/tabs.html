@@ -1,0 +1,31 @@
+{% macro link(path, title, cls="") %}
+<a
+  class="nav-link {% if request.path.startswith(path) %}active{% endif %} {{cls}}"
+  href="{{ path }}">{{ title }}</a>
+{% endmacro %}
+
+<li class="nav-item">
+  {{ link("/profile", "profile") }}
+</li>
+<li class="nav-item">
+  {{ link("/security", "security") }}
+</li>
+<li class="nav-item">
+  {{ link("/keys", "keys") }}
+</li>
+<li class="nav-item">
+  {{ link("/privacy", "privacy") }}
+</li>
+<li class="nav-item">
+  {{ link("/oauth2", "oauth") }}
+</li>
+{% if cfg("meta.sr.ht::billing", "enabled") == "yes" %}
+<li class="nav-item">
+  {{ link("/billing", "billing") }}
+</li>
+{% endif %}
+{% if current_user.user_type == UserType.admin %}
+<li class="nav-item">
+  {{link("/users", "user admin", cls="text-danger")}}
+</li>
+{% endif %}

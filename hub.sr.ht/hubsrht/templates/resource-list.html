@@ -1,0 +1,40 @@
+{% extends "project-base.html" %}
+{% block title %}
+<title>{{project.name}} {{view}} - {{cfg("sr.ht", "site-name")}}</title>
+{% endblock %}
+{% block content %}
+<form class="container">
+  <div class="row">
+    <div class="form-group col-md-12">
+      <input
+        name="search"
+        type="text"
+        placeholder="Search {{view}}"
+        class="form-control{% if search_error %} is-invalid{% endif %}"
+        value="{{ search if search else "" }}" />
+      {% if search_error %}
+        <div class="invalid-feedback">{{ search_error }}</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="row">
+    {% if current_user and current_user.id == owner.id %}
+    <div class="col-md-9 event-list">
+    {% else %}
+    <div class="col-md-12 event-list">
+    {% endif %}
+      {% block resource_list %}
+        TODO: populate resource list
+      {% endblock %}
+      {{pagination()}}
+    </div>
+    {% if current_user and current_user.id == owner.id %}
+    <div class="col-md-3">
+      {% block sidebar %}
+      TODO: populate sidebar
+      {% endblock %}
+    </div>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

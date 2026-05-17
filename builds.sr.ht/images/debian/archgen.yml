@@ -1,0 +1,38 @@
+image: archlinux
+packages:
+  - debootstrap
+  - e2fsprogs
+  - qemu-headless
+  - rsync
+  - syslinux # temporary
+sources:
+  - https://git.sr.ht/~sircmpwn/builds.sr.ht
+environment:
+  release: stretch
+  slaves:
+    - deploy@azusa.runners.sr.ht
+secrets:
+  - fa00a8d3-7b63-42d5-8060-3bb31c3e3018
+tasks:
+  - genimg: |
+      cd builds.sr.ht
+      cd images/debian/$release
+      sed -i ../genimg -e 's:/usr/lib/syslinux/mbr/:/usr/lib/syslinux/bios/:g'
+      sudo ./genimg
+  - sanity-check: |
+      cd builds.sr.ht
+      # Debian does not have a kvm group so we just gotta do it this way
+      sudo chown build:build /dev/kvm
+      MEMORY=1024 ./images/control debian/$release sanity-check
+  - deploy: |
+      cd builds.sr.ht/images/debian/$release
+      echo "StrictHostKeyChecking=no" >> ~/.ssh/config
+      for server in "${slaves[@]}"
+      do
+        rsync \
+          -rzP root.img.qcow2 \
+          ${server}:/var/lib/images/debian/$release/new_root.img.qcow2
+        ssh $server \
+          mv /var/lib/images/debian/$release/new_root.img.qcow2 \
+             /var/lib/images/debian/$release/root.img.qcow2
+      done

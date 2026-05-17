@@ -1,0 +1,39 @@
+image: guix
+arch: x86_64
+packages:
+  - qemu-minimal
+  - rsync
+sources:
+  - https://git.sr.ht/~sircmpwn/builds.sr.ht
+secrets:
+  - fa00a8d3-7b63-42d5-8060-3bb31c3e3018
+environment:
+  arch: x86_64
+  slaves:
+    - deploy@fra01.builds.sr.ht
+    - deploy@fra02.builds.sr.ht
+    - deploy@rsync.builds.sr.ht
+triggers:
+  - action: email
+    condition: failure
+    to: ~sircmpwn/sr.ht-image-failures@lists.sr.ht
+    cc: unwox <me@unwox.com>, csantosb <csantosb@inventati.org>
+tasks:
+  - genimg: |
+      cd builds.sr.ht/images/guix
+      ./genimg $arch
+  - sanity-check: |
+      cd builds.sr.ht
+      MEMORY=1024 ./images/control guix sanity-check
+  - deploy: |
+      cd builds.sr.ht/images/guix
+      echo "StrictHostKeyChecking=no" >> ~/.ssh/config
+      for server in "${slaves[@]}"
+      do
+        ssh $server mkdir -p /var/lib/images/guix/$arch
+        rsync -rzzP $arch/root.img.qcow2 \
+          ${server}:/var/lib/images/guix/new_root.img.qcow2
+        ssh $server \
+          mv /var/lib/images/guix/new_root.img.qcow2 \
+             /var/lib/images/guix/$arch/root.img.qcow2
+      done

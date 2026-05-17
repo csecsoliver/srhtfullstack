@@ -1,0 +1,172 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>Register for {{cfg("sr.ht", "site-name")}}</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-10 offset-md-1">
+    <h3>
+      Register for {{cfg("sr.ht", "site-name")}}
+      <small>
+        or <a href="/login">log in</a>
+      </small>
+    </h3>
+  </div>
+</div>
+{% if is_external_auth() %}
+<p>Registration is disabled because {{cfg("sr.ht", "site-name")}} authentication
+  is managed by a different service. Please contact the system administrator
+  for further information.</p>
+{% elif allow_registration() %}
+{% if cfg("meta.sr.ht::billing", "enabled") == "yes" %}
+<div class="row">
+  <div class="col-md-10 offset-md-1">
+    <p>
+      {% if payment %}
+      You are registering as a <strong>maintainer</strong>. After you complete
+      your registration, you will be taken to the billing page, where you'll
+      be provided information on payment options, financial aid, and so on.
+      <a href="{{url_for("auth.register")}}">Register as a contributor instead {{icon('caret-right')}}</a>
+      {% else %}
+      You are registering as a <strong>contributor</strong>, which is free but
+      will limit your access to some features. After you complete registration,
+      you can convert to a maintainer account by setting up billing on your
+      profile at any time.
+      <a href="{{url_for("auth.register")}}">Register as a maintainer instead {{icon('caret-right')}}</a>
+      {% endif %}
+    </p>
+  </div>
+</div>
+{% endif %}
+<div class="row">
+  <div class="col-md-6 offset-md-3">
+    <form method="POST" action="{{url_for("auth.register_step2_POST")}}">
+      {{csrf_token()}}
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input
+           type="text"
+           name="username"
+           id="username"
+           value="{{ username }}"
+           class="form-control {{valid.cls("username")}}"
+           required
+           autocomplete="username"
+           {% if not username %} autofocus{% endif %} />
+        {{valid.summary("username")}}
+      </div>
+      <div class="form-group">
+        <label for="email">Email address</label>
+        <input
+           type="email"
+           name="email"
+           id="email"
+           value="{{ email }}"
+           class="form-control {{valid.cls("email")}}"
+           required
+           {% if username and not email %} autofocus{% endif %} />
+        {{valid.summary("email")}}
+        {% if email and "+" in email %}
+        <input type="hidden" name="allow-plus-in-email" value="yes" />
+        <div class="alert alert-danger">
+          <strong>Warning</strong>: in order to use {{cfg("sr.ht",
+          "site-name")}} effectively, you must be able to both send <em>and</em>
+          receive emails from this email address. To continue, submit the form
+          again.
+        </div>
+        {% endif %}
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input
+           type="password"
+           name="password"
+           id="password"
+           value="{{ password }}"
+           class="form-control {{valid.cls("password")}}"
+           required
+           autocomplete="new-password"
+	   maxlength="72"
+           {% if username and email and not password %} autofocus{% endif %} />
+        {{valid.summary("password")}}
+      </div>
+      {% if site_key %}
+      <div class="form-group">
+        <details
+          {% if valid.cls("pgpKey") == "is-invalid" %}
+          open
+          {% endif %}
+        >
+          <summary>PGP public key (optional)</summary>
+          <textarea
+            class="form-control {{valid.cls("pgpKey")}}"
+            id="pgpKey"
+            name="pgpKey"
+            style="font-family: monospace"
+            rows="5"
+            placeholder="-----BEGIN PGP PUBLIC KEY BLOCK-----
+[...]
+-----END PGP PUBLIC KEY BLOCK-----"
+          >{{pgpKey or ""}}</textarea>
+          <div id="gpg-command-section" class="form-text">
+            <p>
+              You can use the following command to export your PGP key (replace example@example.com with your email address):<br>
+              <code id="gpg-command">gpg --armor --export-options export-minimal --export example@example.com</code>
+            </p>
+          </div>
+          <small class="form-text">
+            Emails sent from {{cfg("sr.ht", "site-name")}} are
+            signed with our PGP key:<br />
+            <a href="/privacy/pubkey">{{site_key}}</a>
+            <p>
+              If you add your PGP key here, we will also encrypt emails sent to
+              you. You may change this in your settings later.
+            </p>
+            <p>
+              <strong class="text-danger">Important!</strong>
+              If you provide a PGP key now, you must be able to decrypt the
+              confirmation email to complete the registration process.
+            </p>
+          </small>
+          {{valid.summary("pgpKey")}}
+        </details>
+      </div>
+      {% endif %}
+      <button class="btn btn-primary pull-right" type="submit">
+        Register {{icon("caret-right")}}
+      </button>
+      <p class="clearfix"></p>
+    </form>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    {{valid.summary()}}
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-10 offset-md-1">
+    <div class="alert alert-warning">
+      <strong>Privacy notice</strong>:
+      {{cfg("sr.ht", "site-name")}} collects the minimum amount of your personal
+      information which is necessary to faciliate the features of our services.
+      We do not collect or process any of your personal information for the
+      purposes of marketing or analytics. We do not send unsolicited marketing
+      emails. Your information is only shared with third-parties if it is
+      necessary to facilitate our services, and you will be warned before this
+      occurs and given an opportunity to prevent the transmission of your
+      information.
+      <a
+        href="{{cfg("sr.ht", "privacy-policy", default="https://man.sr.ht/privacy.md")}}"
+        rel="noopener"
+        target="_blank"
+      >Privacy policy {{icon('external-link-alt')}}</a>
+    </div>
+  </div>
+</div>
+{% else %}
+<p>Registration is currently closed.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,38 @@
+# This schema definition is available in the public domain, or under the terms
+# of CC-0, at your choice.
+scalar Cursor
+scalar Time
+scalar Upload
+
+"""
+This used to decorate fields which are for internal use, and are not
+available to normal API users.
+"""
+directive @internal on FIELD_DEFINITION
+
+# https://semver.org
+type Version {
+  major: Int!
+  minor: Int!
+  patch: Int!
+  buildVersion: String!
+  buildDate: String!
+  """
+  If this API version is scheduled for deprecation, this is the date on which
+  it will stop working; or null if this API version is not scheduled for
+  deprecation.
+  """
+  deprecationDate: Time
+}
+
+type Query {
+  "Returns API version information."
+  version: Version!
+}
+
+type Mutation {
+  """
+  Deletes the authenticated user's account. Internal use only.
+  """
+  deleteUser: Int! @internal
+}

@@ -1,0 +1,15 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>Billing complete - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    <h3>Payment complete 🎉</h3>
+    <p>Your payment has been processed successfully. Thank you!</p>
+    <a href="{{onboarding_redirect}}" class="btn btn-primary">
+      Continue {{icon('caret-right')}}
+    </a>
+  </div>
+</div>
+{% endblock %}

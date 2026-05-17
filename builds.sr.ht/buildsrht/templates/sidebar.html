@@ -1,0 +1,28 @@
+<div class="sidebar">
+  {% if user %}
+  <h2>
+    ~{{ user.username }}
+  </h2>
+  {% if user.location %}
+  <p>{{user.location}}</p>
+  {% endif %}
+  {% if user.url %}
+  <p>
+    <a
+      href="{{user.url}}"
+      target="_blank"
+      rel="me noopener noreferrer nofollow"
+    >{{user.url}}</a>
+  </p>
+  {% endif %}
+  {% if user.bio %}
+  {{user.bio | md}}
+  {% endif %}
+  <hr />
+  {% endif %}
+  <p>Embeddable badge for this view:</p>
+  {% set badge = request.path.rstrip('/') + '.svg' + ('?search=' + search if search else '') %}
+  <a href="{{badge}}"><img src="{{badge}}" alt="builds.sr.ht status" /></a>
+  <p style="margin-top: 1rem"><strong>Markdown</strong></p>
+  <pre>[![builds.sr.ht status]({{root}}{{badge}})]({{root}}{{request.full_path}})</pre>
+</div>

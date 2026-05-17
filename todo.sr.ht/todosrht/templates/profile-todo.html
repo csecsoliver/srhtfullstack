@@ -1,0 +1,59 @@
+{% extends "profile.html" %}
+
+{% block title %}
+<title>{{user.canonical_name}}'s ticket trackers</title>
+{% endblock %}
+
+{% block sidebar %}
+{% if user.id == current_user.id %}
+<a
+  class="btn btn-primary btn-block"
+  href="{{ url_for("tracker.create_GET") }}"
+>
+  Create new tracker {{icon("caret-right")}}
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if trackers or search %}
+<form>
+  <input
+    name="search"
+    type="text"
+    placeholder="Search {{user.canonical_name}}'s ticket trackers"
+    class="form-control{% if search_error %} is-invalid{% endif %}"
+    value="{{ search if search else "" }}" />
+  {% if search_error %}
+    <div class="invalid-feedback">{{ search_error }}</div>
+  {% endif %}
+</form>
+{% endif %}
+
+{% if search and not trackers %}
+<div class="alert alert-warning">
+  No trackers found for "{{search}}".
+</div>
+{% elif not trackers %}
+<div class="alert alert-info">
+  This user does not have any ticket trackers.
+</div>
+{% endif %}
+
+<div class="event-list">
+  {% for tracker in trackers %}
+  <div class="event">
+    <h4>
+      <a href="{{ user|user_url }}"
+        >{{ user }}</a>/<a href="{{ tracker|tracker_url }}"
+        >{{ tracker.name }}</a>
+    </h4>
+    <span class="text-muted">
+      Last active {{ tracker.updated | date }}
+    </span>
+  </div>
+  {% endfor %}
+</div>
+
+{{ pagination() }}
+{% endblock %}

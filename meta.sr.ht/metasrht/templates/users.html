@@ -1,0 +1,56 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>User admin - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <form class="col-md-12">
+    <h3>User administration</h3>
+    <div class="form-group">
+      <input
+        type="text"
+        class="form-control{% if search_error %} is-invalid{% endif %}"
+        name="search"
+        placeholder="Search by username or email"
+        value="{{search if search else ""}}" />
+      {% if search_error %}
+        <div class="invalid-feedback">{{ search_error }}</div>
+      {% endif %}
+    </div>
+    <div class="alert alert-danger">
+      <strong>Notice</strong>: This page contains private user information.
+      Remember your committment to protecting the privacy of the people listed
+      here and do not share any of this information with unauthorized
+      individuals.
+    </div>
+    <div class="event-list">
+      {% for user in users %}
+      <div class="event">
+        <h3>
+          <a href="{{url_for(".user_by_username_GET", username=user.username)}}">
+            ~{{user.username}}
+          </a>
+        </h3>
+        <dl class="row">
+          <dt class="col-md-3">Email</dt>
+          <dd class="col-md-9">
+            <a href="mailto:{{user.email}}">{{user.email}}</a>
+          </dd>
+          <dt class="col-md-3">Registered</dt>
+          <dd class="col-md-9">{{user.created | date}}</dd>
+          <dt class="col-md-3">User type</dt>
+	  <dd class="col-md-9">{{user.user_type.value}}</dd>
+          <dt class="col-md-3">Payment status</dt>
+	  <dd class="col-md-9">{{user.payment_status.value}}</dd>
+          {% if user.bio %}
+          <dt class="col-md-3">Bio</dt>
+          <dd class="col-md-9">{{user.bio | md}}</dd>
+          {% endif %}
+        </dl>
+      </div>
+      {% endfor %}
+    </div>
+    {{pagination()}}
+  </form>
+</div>
+{% endblock %}

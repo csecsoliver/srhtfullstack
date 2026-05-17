@@ -1,0 +1,66 @@
+#!/bin/sh
+poweroff_cmd="sudo poweroff"
+default_arch=x86_64
+
+boot() {
+	if [ "$arch" != "x86_64" ]
+	then
+		echo "Unsupported architecture $arch" >&2
+		exit 1
+	fi
+	_boot $(cpu_opts x86_64)
+}
+
+install() {
+	port=$1
+	shift 1
+	guest_ssh -p $port build@localhost sudo apk upgrade -U
+	guest_ssh -p $port build@localhost sudo apk add "$@"
+}
+
+add_repository() {
+	port=$1
+	name=$2
+	src=$3
+	repo=$(echo $src | cut -d' ' -f1)
+	key=$(echo $src | cut -d' ' -f2)
+	keyname=$(echo $src | cut -d' ' -f3)
+	guest_ssh -p $port build@localhost \
+		"curl -s '$key' | sudo tee /etc/apk/keys/'$keyname'"
+	if [ "${name#@}" = "${name}" ]
+	then
+		printf '%s\n' "$repo" \
+			| guest_ssh -p $port build@localhost \
+			"cat - /etc/apk/repositories | sudo tee /etc/apk/repositories.new"
+	else
+		printf '%s %s\n' "$name" "$repo" \
+			| guest_ssh -p $port build@localhost \
+			"cat - /etc/apk/repositories | sudo tee /etc/apk/repositories.new"
+	fi
+	guest_ssh -p $port build@localhost \
+		"sudo mv /etc/apk/repositories.new /etc/apk/repositories"
+}
+
+sanity_check() {
+	echo "Booting..."
+	cmd_boot x86_64 8022 qemu &
+	trap 'cmd_cleanup 8022' EXIT
+	_wait_boot 8022
+	echo "Testing sudo..."
+	guest_ssh -p 8022 build@localhost sudo ls -a
+	echo "Testing networking..."
+	guest_ssh -p 8022 build@localhost curl https://builds.sr.ht
+	echo "Testing apk..."
+	# repo cache doesn't work in this context
+	guest_ssh -p 8022 build@localhost \
+		sudo sed -i /etc/apk/repositories -e 's/repo-cache.local/dl-2.alpinelinux.org/g'
+	guest_ssh -p 8022 build@localhost sudo apk update
+	guest_ssh -p 8022 build@localhost sudo apk upgrade
+	guest_ssh -p 8022 build@localhost sudo apk add htop
+	echo "Testing git..."
+	guest_ssh -p 8022 build@localhost git --version
+	echo "Testing mercurial..."
+	guest_ssh -p 8022 build@localhost hg --version
+	echo "Everything works!"
+	guest_ssh -p 8022 build@localhost sudo poweroff || true
+}

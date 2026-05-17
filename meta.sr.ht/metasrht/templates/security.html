@@ -1,0 +1,84 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>Security settings - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-12 event-list">
+    <div class="event">
+      <h3>Two-factor auth</h3>
+      <p>
+        Two-factor authentication increases the security of your account by
+        requiring you to complete a secondary challenge in addition to
+        providing your password on login. Use of 2FA is strongly recommended.
+      </p>
+      <h4>TOTP</h4>
+      {% if totp %}
+      <div>
+        <strong>Enabled</strong> on your account {{totp.created | date}}.
+        <form method="POST" action="/security/totp/disable" class="d-inline">
+          {{csrf_token()}}
+          <button class="btn btn-default" type="submit">
+            Disable TOTP {{icon('caret-right')}}
+          </button>
+        </form>
+      </div>
+      {% else %}
+      <p>
+        <strong>Disabled</strong> on your account. Enable this and we'll prompt
+        you for a TOTP code each time you log in.
+      </p>
+      <p>
+        <a href="/security/totp/enable">
+          <button class="btn btn-primary" type="submit">
+            Enable TOTP
+            {{icon('caret-right')}}
+          </button>
+        </a>
+      </p>
+      {% endif %}
+    </div>
+    <div class="event">
+      <h3>Change your password</h3>
+      <p>A link to complete the process will be sent to the email on file for
+      your account ({{current_user.email}}).</p>
+      {% if allow_password_reset() %}
+      <form method="POST" action="/forgot">
+        {{csrf_token()}}
+        <input type="hidden" name="email" value="{{current_user.email}}" />
+        <button class="btn btn-default" type="submit">
+          Send reset link {{icon('caret-right')}}
+        </button>
+      </form>
+      {% else %}
+      Password reset is disabled because {{cfg("sr.ht", "site-name")}}
+      authentication is managed by a different service.
+      {% endif %}
+    </div>
+  </div>
+  <section class="col-md-12">
+    <h3>Account event log</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>IP Address</th>
+          <th>Details</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in audit_log %}
+        <tr>
+          <td>{{log.ip_address}}</td>
+          <td>{{log.details or log.event_type}}</td>
+          <td>{{log.created|date}}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <a href="/security/audit/log" class="btn btn-default pull-right">
+      View full audit log {{icon("caret-right")}}
+    </a>
+  </section>
+</div>
+{% endblock %}

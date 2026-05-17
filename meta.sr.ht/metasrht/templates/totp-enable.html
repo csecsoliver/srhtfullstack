@@ -1,0 +1,42 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>Configure TOTP authentication - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <section class="col-md-8 offset-md-2">
+    <h3>Enable TOTP authentication</h3>
+    <p>
+      Scan this QR code with an app such as
+      <a
+        href="https://f-droid.org/en/packages/com.beemdevelopment.aegis/"
+        target="_blank"
+      >Aegis</a> and enter the generated TOTP code to enable TOTP on your
+      account.
+    </p>
+    <div class="col-md-12 text-centered">
+      <img class="qrcode" src="{{qrcode}}" alt="{{secret}}" title="{{otpauth_uri}}"/><br>
+      <a href="{{otpauth_uri}}"><small>{{otpauth_uri}}</small></a>
+    </div>
+    <form method="POST" action="/security/totp/enable">
+      {{csrf_token()}}
+      <input type="hidden" name="secret" value="{{secret}}" />
+      <div class="form-group">
+        <input
+          type="number"
+          id="code"
+          name="code"
+          class="form-control {{valid.cls("code")}}"
+          placeholder="123456"
+          required
+          autocomplete="one-time-code"
+          autofocus />
+        {{valid.summary("code")}}
+      </div>
+      <button type="submit" class="btn btn-primary pull-right">
+        Enable {{icon("caret-right")}}
+      </button>
+    </form>
+  </section>
+</div>
+{% endblock %}

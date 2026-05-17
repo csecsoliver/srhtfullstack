@@ -1,0 +1,240 @@
+{% extends "project-base.html" %}
+{% import "event.html" as eventutil with context %}
+{% block title %}
+<title>{{project.name}}: {{project.description}}</title>
+{% endblock %}
+{% block content %}
+<div class="container">
+  {% if not project.checklist_complete %}
+  {% if current_user and project.owner_id == current_user.id %}
+  <div class="row">
+    <div class="col-md-12 event-list">
+      <form
+        class="event"
+        method="POST"
+        action="{{url_for("projects.dismiss_checklist_POST",
+          owner=owner.canonical_name, project_name=project.name)}}"
+      >
+        {{csrf_token()}}
+        <h3>
+          New project checklist
+          <button class="btn btn-link text-muted pull-right" type="submit">
+            <small style="font-size: 0.9rem;">
+              dismiss
+            </small>
+          </button>
+        </h3>
+        <ul class="checklist">
+          <li>
+            {% set ncomplete = 0 %}
+            {% if any(project.source_repos) %}
+            {% set ncomplete = ncomplete + 1 %}
+            {{icon('check', cls='text-success')}}
+            Add source code repositories
+            <br />
+            <small class="text-muted">
+              You can see the list of your source repositories by clicking
+              "sources" on the project navigation.
+            </small>
+            {% else %}
+            {{icon('plus-square', cls='text-info')}}
+            <a
+              href="{{url_for("sources.new_GET",
+                owner=owner.canonical_name, project_name=project.name)}}"
+            >Add source code repositories&nbsp;{{icon('arrow-right')}}</a>
+            <br />
+            <small class="text-muted">
+              Git and Mercurial repositories help you share this project's
+              source code with your collaborators.
+            </small>
+            {% endif %}
+          </li>
+          <li>
+            {% if any(project.mailing_lists) %}
+            {% set ncomplete = ncomplete + 1 %}
+            {{icon('check', cls='text-success')}}
+            Add mailing lists
+            <br />
+            <small class="text-muted">
+              You can see the list of your mailing lists by clicking
+              "mailing lists" on the project navigation.
+            </small>
+            {% else %}
+            {{icon('plus-square', cls='text-info')}}
+            <a
+              href="{{url_for("mailing_lists.new_GET",
+                owner=owner.canonical_name, project_name=project.name)}}"
+            >Add mailing lists&nbsp;{{icon('arrow-right')}}</a>
+            <br />
+            <small class="text-muted">
+              Mailing lists give users a place to ask questions about the
+              project or send patches to contribute to the code.
+            </small>
+            {% endif %}
+          </li>
+          <li>
+            {% if any(project.trackers) %}
+            {% set ncomplete = ncomplete + 1 %}
+            {{icon('check', cls='text-success')}}
+            Add bug trackers
+            <br />
+            <small class="text-muted">
+              You can see the list of your ticket trackers by clicking
+              "tickets" on the project navigation.
+            </small>
+            {% else %}
+            {{icon('plus-square', cls='text-info')}}
+            <a
+              href="{{url_for("trackers.new_GET",
+                owner=owner.canonical_name, project_name=project.name)}}"
+            >Add bug trackers&nbsp;{{icon('arrow-right')}}</a>
+            <br />
+            <small class="text-muted">
+              Bug trackers give you a place to organize your tasks and record
+              known defects.
+            </small>
+            {% endif %}
+          </li>
+        </ul>
+        {% if ncomplete == 3 %}
+        <div class="alert alert-info">
+          <p>
+            <button class="btn btn-primary pull-right" type="submit">
+              All done!
+              <span style="position: relative; top: -1px">{{icon('caret-right')}}</span>
+            </button>
+            You're all set! If you want to set up more things for your project,
+            click "more +" on the top right.
+          </p>
+        </div>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+  {% endif %}
+  {% endif %}
+  <div class="row">
+    <div class="col-md-12">
+      <div class="event-list project-events">
+        {% for event in events %}
+        {{ eventutil.event(event) }}
+        {% endfor %}
+        <div class="view-more">
+          <a
+            href="{{url_for("projects.feed_GET",
+              owner=owner, project_name=project.name)}}"
+            class="btn btn-link"
+          >View project feed&nbsp;{{icon("caret-right")}}</a>
+          <a
+            href="{{url_for("projects.feed_rss_GET",
+              owner=owner, project_name=project.name)}}"
+            class="btn btn-link"
+          >RSS&nbsp;{{icon("caret-right")}}</a>
+          <a
+            href="mailto:{{cfg("sr.ht", "owner-email")}}"
+            class="btn btn-link"
+          >Report abuse {{icon('caret-right')}}</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    {% if project.summary_repo_id != None %}
+    <div class="col-md-10 project-summary">
+      {% if current_user and current_user.id == project.owner_id
+        and not summary and not summary_error %}
+      <div class="alert alert-danger">
+        <strong>Heads up!</strong>
+        This project is configured to use a README from
+        <a href="{{project.summary_repo.url()}}">
+          {{project.summary_repo.owner.canonical_name}}/{{project.summary_repo.name}}
+        </a>
+        as the project summary, but there is no such file. Push one to update
+        the project summary, or
+        <a
+          href="{{url_for("sources.manage_GET",
+                 owner=owner.canonical_name, project_name=project.name)}}"
+        >choose a different repository</a>.
+      </div>
+      {% else %}
+      {% if not summary_error %}
+      <div class="readme">
+        {{summary}}
+      </div>
+      {% else %}
+      <div class="alert alert-danger">
+        An internal error occured fetching the README for this project.
+      </div>
+      {% endif %}
+      {% endif %}
+    </div>
+    {% elif current_user and current_user.id == project.owner_id %}
+    <div class="col-md-8 offset-md-2">
+      {% if any(project.source_repos) %}
+      <div class="alert alert-success">
+        You have added {{len(project.source_repos)}} source
+        repositor{{"ies" if len(project.source_repos) > 1 else "y"}}
+        to this project. Would you like to display
+        {% if len(project.source_repos) > 1 %}
+        one of the README files
+        {% else %}
+        the README file
+        {% endif %}
+        on this page?
+      </div>
+      <div class="event-list select-resource">
+        {% for repo in project.source_repos %}
+        <form
+          class="event"
+          method="POST"
+          action="{{url_for("sources.summary_POST",
+            owner=project.owner.canonical_name,
+            project_name=project.name,
+            repo_id=repo.id)}}"
+        >
+          {{csrf_token()}}
+          <h3>
+            <button
+              type="submit"
+              class="pull-right btn btn-primary btn-lg"
+            >Use README&nbsp;{{ icon("caret-right") }}</button>
+            <a
+              href="{{repo.url()}}"
+              target="_blank"
+              rel="noopener"
+            >{{ repo.name }}</a>
+          </h3>
+        </form>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% if current_user and current_user.user_type.value == "ADMIN" %}
+  <div class="row" style="margin-top: 5rem">
+    <div class="col-md-6">
+      <h3>Feature this project</h3>
+      <form action="{{url_for("projects.feature_POST",
+            owner=project.owner.canonical_name,
+            project_name=project.name)}}"
+          method="POST">
+        {{csrf_token()}}
+        <div class="form-group">
+          <textarea
+            class="form-control"
+            name="summary"
+            rows="3"
+            placeholder="Featured project summary"
+          ></textarea>
+        </div>
+        <button
+          type="submit"
+          class="btn btn-primary"
+        >Feature project {{icon('caret-right')}}</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

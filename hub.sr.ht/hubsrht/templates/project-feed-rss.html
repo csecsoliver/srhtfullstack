@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+{% import "event-rss.html" as event_rss_tpl with context %}
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>{{project.name}} activity</title>
+    <link>{{url_for("projects.summary_GET",
+      owner=project.owner.canonical_name,
+      project_name=project.name)}}</link>
+    <description>{{project.owner.canonical_name}}/{{project.name}}</description>
+    <atom:link href="{{url_for('projects.feed_rss_GET',
+      owner=project.owner.canonical_name,
+      project_name=project.name)}}" rel="self" type="application/rss+xml" />
+    {% for event in events %}
+    {{ event_rss_tpl.event(event, project) }}
+    {% endfor %}
+  </channel>
+</rss>

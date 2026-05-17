@@ -1,0 +1,57 @@
+# Welcome to the SourceHut GraphQL explorer!
+# You can use this to run test requests against the GraphQL API.
+# To view the GraphQL schema, expand the button on the bottom of this page.
+# Here's a sample query to get you started:
+query {
+  # Fetch info about the authenticated user (you):
+  me {
+    # Grab their canonical name:
+    canonicalName
+    # And a list of projects:
+    projects {
+      # This resource is paginated, so it has a cursor. If you pass this value
+      # into projects(cursor:"...") in a subsequent request, you'll get the
+      # next page.
+      cursor
+      # These are the actual results. Grab the rid, name, description, tags and
+      # updated fields from each project, as well as its mailing lists,
+      # source repositories and trackers.
+      results {
+        rid, name, description, tags, updated
+        mailingLists {
+          cursor,
+          results {
+            rid, name, description
+          }
+        }
+        sources {
+          cursor,
+          results {
+            rid, name, description, repoType
+          }
+        }
+        trackers {
+          cursor,
+          results {
+            rid, name, description
+          }
+        }
+      }
+    }
+  }
+
+  # Also fetch the API version. Please note that the GraphQL API is considered
+  # experimental: as long as this returns 0.0.0, the API is subject to change
+  # without notice.
+  version {
+    major, minor, patch
+  }
+
+  # The same results as with this Web utility you can get with `hut`
+  # utility (https://sr.ht/~xenrox/hut/)
+  #
+  # echo 'query { me { canonicalName } }' | hut graphql lists
+  #
+  # Or, use `hut graphql lists` to edit GraphQL queries with
+  # your $EDITOR.
+}

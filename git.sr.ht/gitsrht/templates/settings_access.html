@@ -1,0 +1,103 @@
+{% extends "settings.html" %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    {% if len(repo.acls.results) > 0 %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Granted</th>
+          <th>Access</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for grant in repo.acls.results %}
+        <tr>
+          <td>
+            <a href="/~{{ grant.entity.username }}">~{{grant.entity.username}}</a>
+          </td>
+          <td>{{ grant.created | date }}</td>
+          <td>{{ grant.mode.value }}</td>
+          <td style="width: 6rem">
+            <form
+              method="POST"
+              action="/~{{owner.username}}/{{
+                repo.name
+              }}/settings/access/revoke/{{ grant.id }}"
+            >
+              {{csrf_token()}}
+              <button type="submit" class="btn btn-danger btn-fill">Revoke</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if repo.acls.cursor %}
+    <a
+      href="?nextacls={{repo.acls.cursor}}"
+      class="btn btn-default pull-right"
+    >Next {{icon('caret-right')}}</a>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-8">
+    <h4>Grant Access</h4>
+    <form method="POST">
+      {{csrf_token()}}
+      <div class="form-group">
+        <label for="user">User</label>
+        <input
+          type="text"
+          class="form-control {{valid.cls("user")}}"
+          id="user"
+          name="user"
+          placeholder="~{{ current_user.username }}"
+          value="{{user or ""}}"
+        />
+        {{valid.summary("user")}}
+      </div>
+      <fieldset class="form-group">
+        <legend>Access</legend>
+        <!-- This is in a weird spot cause it looks better over here -->
+        <button type="submit" class="btn btn-primary pull-right">
+          Grant access {{icon("caret-right")}}
+        </button>
+        <div class="form-check form-check-inline">
+          <label
+            class="form-check-label"
+            title="Can view on the web and clone the repository"
+          >
+            <input
+              class="form-check-input"
+              type="radio"
+              name="access"
+              value="RO"
+              {{ "checked" if not access or access.value == "RO" else "" }}
+            > Read only
+          </label>
+        </div>
+        <div class="form-check form-check-inline">
+          <label
+              class="form-check-label"
+              title="Can push commits to the repository"
+            >
+            <input
+              class="form-check-input"
+              type="radio"
+              name="access"
+              value="RW"
+              {{ "checked" if access and access.value == "RW" else "" }}
+            > Read/write
+          </label>
+        </div>
+      </fieldset>
+    </form>
+  </div>
+</div>
+{% endblock %}

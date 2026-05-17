@@ -1,0 +1,25 @@
+{% extends "settings.html" %}
+{% block title %}
+<title>Delete {{tracker.owner}}/{{tracker.name}} &mdash; {{ cfg("sr.ht", "site-name") }}</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <p>
+      This will permanently delete your tracker,
+      <strong>{{ tracker.owner }}/{{ tracker.name }}</strong>, and all of
+      its tickets. This cannot be undone.
+    </p>
+    <form method="POST">
+      {{csrf_token()}}
+      <button type="submit" class="btn btn-danger">
+        Proceed and delete {{icon("caret-right")}}
+      </button>
+      <a
+        href="/{{ tracker.owner }}/{{ tracker.name }}"
+        class="btn btn-default"
+      >Nevermind</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

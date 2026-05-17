@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+#
+# Utility for converting a bunch of raw email files into an mbox.
+
+import email
+import email.policy
+import mailbox
+import sys
+
+if len(sys.argv) < 3:
+    print(f"Usage: {sys.argv[0]} <output.mbox> <emails...>")
+
+factory = lambda f: email.message_from_bytes(f.read(), policy=email.policy.SMTP)
+mbox = mailbox.mbox(sys.argv[1], factory=factory)
+
+nmsgs = len(sys.argv) - 2
+i = 0
+for msg in sys.argv[2:]:
+    i += 1
+    sys.stdout.write(f"\r{i}/{nmsgs}")
+    with open(msg, "rb") as f:
+        mail = factory(f)
+        mbox.add(mail)
+
+mbox.close()
+
+print(f"\rCreated mbox with {nmsgs} messages")

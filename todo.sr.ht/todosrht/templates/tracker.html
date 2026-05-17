@@ -1,0 +1,280 @@
+{% extends "layout-full.html" %}
+{% block title %}
+<title>
+  {{tracker.name}}
+  &mdash;
+  {{ cfg("sr.ht", "site-name") }} todo
+</title>
+<!-- Tracker ID: {{tracker.id}} -->
+{% endblock %}
+{% block head %}
+{% if tracker.visibility.value =='UNLISTED' %}
+<meta name="robots" content="noindex">
+{% endif %}
+{% endblock %}
+{% block body %}
+<div class="header-tabbed">
+  <div class="container-fluid">
+    <h2>
+      <a href="{{ tracker.owner|user_url }}">{{ tracker.owner }}</a>/<wbr
+     >{{ tracker.name }}
+    </h2>
+    <ul class="nav nav-tabs">
+      {% if tracker.visibility.value != "PUBLIC" %}
+      <li
+        class="nav-item nav-text vis-{{tracker.visibility.value.lower()}}"
+        {% if tracker.visibility.value == "UNLISTED" %}
+        title="This tracker is only visible to those who know the URL."
+        {% elif tracker.visibility.value == "PRIVATE" %}
+        title="This tracker is only visible to those who were invited to view it."
+        {% endif %}
+      >
+        {% if tracker.visibility.value == "UNLISTED" %}
+        Unlisted
+        {% elif tracker.visibility.value == "PRIVATE" %}
+        Private
+        {% endif %}
+      </li>
+      {% endif %}
+      <li class="nav-item">
+        <a class="nav-link {{ "active" if not search else "" }}"
+          href="{{ tracker | tracker_url }}">open tickets</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {{
+            "active" if search == "status:closed"
+              or search == "status:resolved" else ""
+            }}" href="{{ tracker | tracker_url}}?search=status:closed">closed tickets</a>
+      </li>
+      {% if search and search != "status:closed" and search != "status:resolved" %}
+      <li class="nav-item">
+        <a class="nav-link active" href="?search={{ search }}">
+          search results
+        </a>
+      </li>
+      {% endif %}
+      <li class="nav-item">
+        <a class="nav-link"
+          href="{{ tracker|tracker_labels_url }}">labels</a>
+      </li>
+      {% if current_user and current_user.id == tracker.owner_id %}
+      <li class="nav-item">
+        <a class="nav-link" href="{{url_for("settings.details_GET",
+          owner=tracker.owner.canonical_name,
+          name=tracker.name)}}"
+        >settings</a>
+      </li>
+      {% endif %}
+      <li class="flex-grow-1 d-none d-sm-block"></li>
+      <li class="nav-item d-none d-sm-block">
+        {% if current_user %}
+        <form method="POST" action="{{url_for("tracker." +
+            ("disable_notifications" if is_subscribed else "enable_notifications"),
+            owner=tracker.owner.canonical_name,
+            name=tracker.name)}}">
+          {{csrf_token()}}
+          <button class="nav-link active" type="submit">
+            {{icon("envelope-o")}}
+            {% if is_subscribed %}
+            Disable notifications
+            {% else %}
+            Enable notifications
+            {% endif %}
+            {{icon("caret-right")}}
+          </button>
+        </form>
+        {% else %}
+        <a class="nav-link active" href="{{ tracker_subscribe }}">
+          {{icon("envelope-o")}}
+          Subscribe
+          {{icon("caret-right")}}
+        </a>
+        {% endif %}
+      </li>
+    </ul>
+  </div>
+</div>
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-lg-4 col-md-12">
+      {% if tracker.description %}
+      {{ tracker.description | md }}
+      {% endif %}
+      {% if TicketAccess.SUBMIT in access %}
+      {% if current_user %}
+      <h3 style="margin-top: 1rem">Submit ticket</h3>
+      <form method="POST" action="{{
+          url_for(".tracker_submit_POST",
+            owner="~" + tracker.owner.username,
+            name=tracker.name
+          )
+        }}">
+        {{csrf_token()}}
+        <div class="form-group">
+          <label for="title">Title</label>
+          <input
+             type="text"
+             dir="auto"
+             class="form-control {{ valid.cls("title") }}"
+             maxlength="2048"
+             id="title"
+             name="title"
+             value="{{ title or "" }}"
+             {% if another %}
+             autofocus
+             {% endif %}
+             required />
+          {{valid.summary("title")}}
+        </div>
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea
+            dir="auto"
+            class="form-control {{ valid.cls("description") }}"
+            id="description"
+            name="description"
+            placeholder="Markdown supported"
+            maxlength="16384"
+            rows="5">{{ description or "" }}</textarea>
+          {{valid.summary("description")}}
+        </div>
+        <button
+          type="submit"
+          class="btn btn-primary"
+        >
+          Submit {{icon("caret-right")}}
+        </button>
+        <button type="submit" name="preview" class="btn btn-default">
+          Preview {{icon("caret-right")}}
+        </button>
+        <label class="form-check-label" style="margin-left: 2rem">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            name="another"
+            style="position: relative; top: 2px;"
+            {% if another %}
+            checked
+            {% endif %}> Submit another?
+        </label>
+      </form>
+
+      {% if rendered_preview %}
+      <div class="ticket-preview">
+        <span class="preview-tag">Ticket preview</span>
+        <h2>{{ title }}</h2>
+        {{ rendered_preview }}
+      </div>
+      {% endif %}
+
+      {% elif cfg("todo.sr.ht::mail", "posting-domain") %}
+      <a
+        class="btn btn-primary"
+        href="{{get_origin("meta.sr.ht", external=True)}}/register"
+      >Register here {{icon('caret-right')}}</a>
+      or
+      <a href="{{login_url}}">
+        Log in {{icon('caret-right')}}
+      </a>
+      to submit tickets, or
+      <a
+        href="mailto:{{tracker.ref()}}@{{cfg("todo.sr.ht::mail", "posting-domain")}}"
+      >submit via email</a>.
+      {% endif %}
+      {% else %}
+      <hr />
+      {% if current_user %}
+      <p>You are not permitted to submit tickets for this tracker.</p>
+      {% else %}
+      <p>You need to <a href="{{ login_url }}">log in</a> to submit tickets.</p>
+      {% endif %}
+      {% endif %}
+
+      <footer class="container text-center">
+        <small class="text-muted" title="The resource ID for this bug tracker, used to identify it in the GraphQL API.">
+          Tracker RID: {{to_rid(tracker.rid)}}
+        </small>
+      </footer>
+    </div>
+    <div class="col-md-12 col-lg-8">
+      {% if tracker.import_in_progress %}
+      <div class="alert alert-primary">
+        An import operation is currently in progress.
+      </div>
+      {% endif %}
+      {% if notice %}
+      <div class="alert alert-success">
+        {{ notice }}
+      </div>
+      {% endif %}
+      {% if TicketAccess.BROWSE not in access and TicketAccess.SUBMIT in access %}
+      <div class="alert alert-warning">
+        You do not have permission to view tickets on this tracker unless you
+        submitted them.
+      </div>
+      {% elif TicketAccess.BROWSE not in access and TicketAccess.SUBMIT not in access %}
+      <div class="alert alert-warning">
+        You do not have permission to view tickets on this tracker.
+      </div>
+      {% endif %}
+      <form style="margin-bottom: 0.5rem">
+        <label for="search" class="sr-only">Search tickets</label>
+        <input
+          name="search"
+          type="text"
+          dir="auto"
+          placeholder="Search tickets...     status:closed     sort:created     label:label{{"     submitter:me" if current_user else ""}}"
+          class="form-control{% if search_error %} is-invalid{% endif %}"
+          {% if not another %}
+          autofocus
+          {% endif %}
+          value="{{ search if search else "" }}" />
+        {% if search_error %}
+          <div class="invalid-feedback">{{ search_error }}</div>
+        {% endif %}
+      </form>
+      {% if len(tickets) %}
+      <div class="ticket-list">
+        {% for ticket in tickets %}
+        <div class="id">
+          <a href="{{ ticket|ticket_url }}">#{{ticket.scoped_id}}</a>
+        </div>
+        <div class="title">
+          <a href="{{ ticket|ticket_url }}">
+            {{ ticket.title }}
+          </a>
+          <span class="pull-right">
+            {% for label in ticket.labels %}
+              {% if not search %}
+                {{ label|label_badge(cls="small", terms="status:open") }}
+              {% else %}
+                {{ label|label_badge(cls="small", terms=search) }}
+              {% endif %}
+            {% endfor %}
+          </span>
+        </div>
+        <div class="updated">{{ ticket.updated | date }}</div>
+        <div class="submitter">
+          <a href="{{ ticket.submitter|participant_url }}">
+            {{ ticket.submitter.name }}
+          </a>
+        </div>
+        <div class="comments" aria-label="Comments">
+          <span class="icon_count">
+            {{icon("comments-o")}}
+            {{ ticket.comment_count }}
+          </span>
+          <span class="commentlabel">
+            {{ "comment" if ticket.comment_count == 1 else "comments" }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="alert alert-info">No tickets found for this search criteria.</div>
+      {% endif %}
+      {{pagination()}}
+    </div>
+  </div>
+</div>
+{% endblock %}

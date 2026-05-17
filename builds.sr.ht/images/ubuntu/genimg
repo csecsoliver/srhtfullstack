@@ -1,0 +1,175 @@
+#!/bin/sh -eux
+echo "$release" >/dev/null # fail on -u if release unset
+arch=${1:-amd64}
+case $arch in
+	amd64)
+		iface=ens3
+		qarch=x86_64
+		;;
+	arm64)
+		iface=enp0s1
+		qarch=aarch64
+		;;
+	*)
+		echo "unsupported architecture $arch"
+		exit 1
+		;;
+esac
+
+cleanup() {
+	# The order here is important if you don't want to hose your mounts
+	cat /mnt/debootstrap/debootstrap.log || true
+	umount /mnt/dev/pts 2>/dev/null || true
+	umount /mnt/dev/shm 2>/dev/null || true
+	umount /mnt/dev 2>/dev/null || true
+	umount /mnt/proc 2>/dev/null || true
+	umount /mnt/run 2>/dev/null || true
+	umount /mnt/sys 2>/dev/null || true
+	umount /mnt/boot 2>/dev/null || true
+	umount /mnt 2>/dev/null || true 
+	qemu-nbd --disconnect /dev/nbd0 || true
+}
+
+mkdir -p "$arch"
+
+qemu-img create -f qcow2 $arch/root.img.qcow2 32G
+modprobe nbd max_part=16
+qemu-nbd --connect=/dev/nbd0 $arch/root.img.qcow2
+trap cleanup EXIT
+
+if [ "$arch" = "amd64" ]
+then
+	dd if=/usr/lib/syslinux/mbr/mbr.bin of=/dev/nbd0 bs=1 count=440
+fi
+
+sfdisk --no-reread /dev/nbd0 <<EOF
+1M,256M,L,*
+,4096M,S
+,,L
+EOF
+
+mkfs.ext4 /dev/nbd0p1
+mkswap /dev/nbd0p2
+mkfs.ext4 /dev/nbd0p3
+
+mount /dev/nbd0p3 /mnt
+mkdir /mnt/boot
+mount /dev/nbd0p1 /mnt/boot
+
+export DEBIAN_FRONTEND=noninteractive
+
+debootstrap \
+	--include=gnupg,ubuntu-keyring \
+	--arch=$arch $release \
+	/mnt http://archive.ubuntu.com/ubuntu/
+
+mount --bind /dev /mnt/dev
+mount --bind /dev/pts /mnt/dev/pts
+mount --bind /dev/shm /mnt/dev/shm
+mount --bind /proc /mnt/proc
+mount --bind /run /mnt/run
+mount --bind /sys /mnt/sys
+
+if [ "$arch" != "amd64" ]
+then
+	cp /usr/bin/qemu-$qarch-static /mnt/usr/bin
+fi
+
+run_root() {
+	chroot /mnt /usr/bin/env \
+		PATH=/sbin:/usr/sbin:/bin:/usr/bin \
+		sh -c "$*"
+}
+
+rm -f /mnt/etc/resolv.conf
+echo 'nameserver 8.8.8.8' >/mnt/etc/resolv.conf
+echo 'nameserver 9.9.9.9' >>/mnt/etc/resolv.conf
+echo 'nameserver 1.1.1.1' >>/mnt/etc/resolv.conf
+cat >/mnt/etc/systemd/network/25-ens3.network <<EOF
+[Match]
+Name=ens3
+
+[Network]
+Address=10.0.2.15/24
+Gateway=10.0.2.2
+EOF
+
+run_root systemctl enable systemd-networkd.service
+run_root systemctl enable systemd-timesyncd.service
+
+cat <<EOF >/mnt/etc/hosts
+127.0.0.1 localhost.localdomain localhost
+::1 localhost.localdomain localhost
+127.0.0.1 build.localdomain build
+EOF
+
+cat >/mnt/etc/apt/sources.list <<EOF
+deb http://archive.ubuntu.com/ubuntu/ $release main restricted universe multiverse 
+deb http://archive.ubuntu.com/ubuntu/ $release-security main restricted universe multiverse 
+deb http://archive.ubuntu.com/ubuntu/ $release-updates main restricted universe multiverse 
+deb http://archive.ubuntu.com/ubuntu/ $release-backports main restricted universe multiverse 
+EOF
+run_root apt-get update
+run_root apt-get -y upgrade
+run_root apt-get -y install locales
+run_root apt-get -y install linux-base
+run_root apt-get -y install linux-image-generic
+run_root apt-get -y install \
+	build-essential git mercurial ssh sudo dirmngr curl ca-certificates
+
+if [ "$arch" = "amd64" ]
+then
+	extlinux -i /mnt/boot
+fi
+
+run_root ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+run_root systemctl enable systemd-timesyncd.service
+
+run_root useradd -mG sudo build
+run_root passwd -d build
+echo '%sudo ALL=(ALL) NOPASSWD: ALL' >> /mnt/etc/sudoers
+
+echo "PermitEmptyPasswords yes" >> /mnt/etc/ssh/sshd_config
+echo ssh >> /mnt/etc/securetty
+run_root systemctl enable ssh
+
+# Prevent docker from mucking up networking
+mkdir -p /mnt/etc/docker
+cat >/mnt/etc/docker/daemon.json <<EOF
+{
+	"bip": "172.18.0.1/16"
+}
+EOF
+
+run_root update-initramfs -u
+
+linuxver=$(ls /mnt/boot | grep 'vmlinuz-[0-9].*' | cut -d- -f2-)
+
+cat >/mnt/boot/extlinux.conf <<EOF
+default ubuntu
+label ubuntu
+	linux vmlinuz-$linuxver
+	initrd initrd.img-$linuxver
+	append root=/dev/vda3 rw quiet
+EOF
+
+cat >>/mnt/etc/fstab <<EOF
+/dev/vda1 /boot ext4 rw,relatime,data=ordered 0 0
+/dev/vda2 swap swap defaults 0 0
+/dev/vda3 / ext4 rw,relatime,data=ordered 0 0
+EOF
+
+cat >/mnt/home/build/.gitconfig <<EOF
+[user]
+  name = builds.sr.ht
+  email = builds@sr.ht
+EOF
+chown build:build /mnt/home/build/.gitconfig
+
+if [ "$arch" != "amd64" ]
+then
+	cp /mnt/boot/vmlinuz $arch/vmlinuz
+	cp /mnt/boot/initrd.img $arch/initrd.img
+fi
+
+sync

@@ -1,0 +1,44 @@
+{% extends "project-base.html" %}
+{% block title %}
+<title>Manage mailing lists - {{project.name}}</title>
+{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-12 event-list">
+      <h3>Manage mailing lists</h3>
+      <form>
+        <input
+          name="search"
+          type="text"
+          placeholder="Search mailing lists"
+          class="form-control{% if search_error %} is-invalid{% endif %}"
+          value="{{ search if search else "" }}" />
+        {% if search_error %}
+          <div class="invalid-feedback">{{ search_error }}</div>
+        {% endif %}
+      </form>
+      {% for mailing_list in mailing_lists %}
+      <div class="event">
+        <h4>
+          <a
+            href="{{mailing_list.url()}}"
+          >{{mailing_list.owner.canonical_name}}/{{mailing_list.name}}</a>
+        </h4>
+        {% if mailing_list.description %}
+        {{ mailing_list.description | md }}
+        {% endif %}
+        <a
+          class="btn btn-danger"
+          href="{{url_for("mailing_lists.delete_POST",
+            owner=project.owner.canonical_name,
+            project_name=project.name,
+            list_id=mailing_list.id)}}"
+        >Remove mailing list {{icon('caret-right')}}</a>
+      </div>
+      {% endfor %}
+      {{pagination()}}
+    </div>
+  </div>
+</div>
+{% endblock %}

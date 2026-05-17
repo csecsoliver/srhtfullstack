@@ -1,0 +1,17 @@
+#!/bin/sh -eu
+# Input: list of paths to git repositories exported from Postgres
+# \copy (select path from repository) TO 'repos.csv' (format CSV);
+hooks="pre-receive update post-update post-receive"
+executable=/usr/bin/git.sr.ht-update-hook
+while read -r path
+do
+	echo $path
+	for hook in $hooks
+	do
+		if ! [ -d "$path"/hooks ]
+		then
+			continue
+		fi
+		ln -sf $executable "$path"/hooks/$hook
+	done
+done

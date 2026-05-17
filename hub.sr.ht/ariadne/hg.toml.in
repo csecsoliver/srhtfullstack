@@ -1,0 +1,15 @@
+[tool.ariadne-codegen]
+async_client = false
+client_name = "HgClient"
+schema_path = "@ASSETS@/hg.sr.ht.graphqls"
+queries_path = "hubsrht/services/hg/"
+target_package_path = "hubsrht/services/"
+target_package_name = "hg"
+plugins = ["srht.ariadne.AriadnePlugin"]
+
+[tool.ariadne-codegen.sourcehut]
+service_name = "hg.sr.ht"
+
+[tool.ariadne-codegen.scalars.Time]
+type = "datetime.datetime"
+parse = "srht.graphql.gql_time"

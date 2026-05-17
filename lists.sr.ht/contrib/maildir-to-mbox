@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+#
+# Utility for converting a maildir into an mbox.
+
+import email
+import mailbox
+import sys
+
+if len(sys.argv) != 3:
+    print(f"Usage: {sys.argv[0]} <maildir> <output.mbox>")
+
+factory = lambda f: email.message_from_bytes(f.read(), policy=email.policy.SMTP)
+maildir = mailbox.Maildir(sys.argv[1], factory=factory)
+mbox = mailbox.mbox(sys.argv[2], factory=factory)
+
+nmsgs = 0
+for msg in maildir.values():
+    nmsgs += 1
+    mbox.add(msg)
+
+maildir.close()
+mbox.close()
+
+print(f"Created mbox with {nmsgs} messages")

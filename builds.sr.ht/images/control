@@ -1,0 +1,245 @@
+#!/bin/sh -eu
+self=$(readlink -f $0)
+self=$(dirname "$self")
+
+if [ -f /etc/image-control.conf ]
+then
+	. /etc/image-control.conf
+fi
+
+base=$1
+cmd=$2
+shift 2
+
+if [ ! -d $self/$base ]
+then
+	printf "Image '%s' does not exist\n" "$base" >&2
+	exit 1
+fi
+
+ssh_opts="-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+guestport=22
+
+guest_ssh() {
+	ssh $ssh_opts "$@"
+}
+
+cpu_opts() {
+	if [ "$(uname -m)" = "$1" ] && [ -e /dev/kvm ]
+	then
+		printf "%s" "-cpu host -enable-kvm"
+		return
+	fi
+	case "$1" in
+		aarch64)
+			printf "%s" "-M virt -cpu cortex-a53"
+			;;
+		x86_64)
+			printf "%s" "-cpu qemu64"
+			;;
+		ppc64le)
+			printf "%s" "-cpu power9 -machine pseries"
+			;;
+		*)
+			printf "Unsupported architecture '%s'\n" "$arch" >&2
+			exit 1
+			;;
+	esac
+}
+
+_docker_boot() {
+	docker run -d \
+		-v "$self/$base":/base:ro \
+		--mount type=tmpfs,destination=/var/tmp \
+		--device /dev/kvm \
+		--cpus=2 \
+		-p 127.0.0.1:$port:$port \
+		--rm \
+		--name "builds_job_${BUILD_JOB_ID:-unknown_$(date +"%s")}" \
+		qemu /bin/${qemu:-qemu-system-$arch} \
+		-m ${MEMORY:-4096} \
+		-smp cpus=2 \
+		-net nic,model=virtio -net user,hostfwd=tcp::$port-:$guestport \
+		-display none \
+		-device virtio-rng-pci \
+		-device virtio-balloon \
+		-drive file="$wd/$arch/root.img.qcow2",media=disk,snapshot=on,${driveopts:-if=virtio} \
+		"$@" > /tmp/docker-$port.id
+}
+
+_qemu_boot() {
+	${qemu:-qemu-system-$arch} \
+		-pidfile /tmp/qemu-$port.id \
+		-m ${MEMORY:-4096} \
+		-smp cpus=2 \
+		-net nic,model=virtio -net user,hostfwd=tcp:127.0.0.1:$port-:$guestport \
+		-display none \
+		-device virtio-rng-pci \
+		-device virtio-balloon \
+		-drive file="$wd/$arch/root.img.qcow2",media=disk,snapshot=on,${driveopts:-if=virtio} \
+		"$@" &
+}
+
+_qemu_chroot_boot() {
+	qemu-chroot \
+		-p /tmp/qemu-$port.id \
+		-b "$self/$base":/base \
+		-b /var/tmp:/var/tmp \
+		/bin/${qemu:-qemu-system-$arch} \
+		-m ${MEMORY:-4096} \
+		-smp cpus=2 \
+		-net nic,model=virtio -net user,hostfwd=tcp:127.0.0.1:$port-:$guestport \
+		-display none \
+		-device virtio-rng-pci \
+		-device virtio-balloon \
+		-drive file="$wd/$arch/root.img.qcow2",media=disk,snapshot=on,${driveopts:-if=virtio} \
+		"$@" &
+}
+
+_qemu_kvm_boot() {
+	qemu-kvm \
+		-pidfile /tmp/qemu-$port.id \
+		-m ${MEMORY:-4096} \
+		-smp cpus=2 \
+		-net nic,model=virtio -net user,hostfwd=tcp:127.0.0.1:$port-:$guestport \
+		-display none \
+		-device virtio-rng-pci \
+		-device virtio-balloon \
+		-drive file="$wd/$arch/root.img.qcow2",media=disk,snapshot=on,${driveopts:-if=virtio} \
+		"$@" &
+}
+
+_boot() {
+	if [ "$means" = "docker" ]
+	then
+		_docker_boot "$@"
+	elif [ "$means" = "qemu" ]
+	then
+		_qemu_boot "$@"
+	elif [ "$means" = "qemu-chroot" ]
+	then
+		_qemu_chroot_boot "$@"
+	elif [ "$means" = "qemu-kvm" ]
+	then
+		_qemu_kvm_boot "$@"
+	fi
+}
+
+cmd_boot() {
+	arch=$1
+	shift
+
+	if [ "$arch" = "default" ]
+	then
+		arch="$default_arch"
+	fi
+	if [ ! -e "$self/$base/$arch/root.img.qcow2" ]
+	then
+		printf "Image '%s' is not available for arch '%s'\n" "$base" "$arch" >&2
+		exit 1
+	fi
+
+	port=$1
+	if [ "$#" -gt 1 ]
+	then
+		means=$2
+	else
+		means="${default_means:-docker}"
+	fi
+
+	if [ "$means" = "docker" ]
+	then
+		wd="/base"
+	elif [ "$means" = "qemu" ]
+	then
+		wd="$self/$base"
+	elif [ "$means" = "qemu-chroot" ]
+	then
+		wd="/base"
+	elif [ "$means" = "qemu-kvm" ]
+	then
+		wd="$self/$base"
+	else
+		printf "Unknown boot mode '%s'\n" "$means" >&2
+		exit 1
+	fi
+
+	boot
+}
+
+_wait_boot() {
+	port=$1
+	attempts=0
+	echo "Waiting for VM to come up..."
+	while ! guest_ssh -p "$port" build@localhost echo Hello world 2>&1 >/dev/null
+	do
+		sleep 5
+		attempts=$((attempts + 1))
+		if [ "$attempts" -eq 20 ]
+		then
+			echo "Giving up."
+			cmd_cleanup "$port"
+			exit 1
+		fi
+		echo "Attempt $attempts..."
+	done
+}
+
+cmd_cleanup() {
+	port=$1
+	# Power off
+	if [ "$#" -eq 1 ]
+	then
+		if [ -e /tmp/docker-$port.id ]
+		then
+			cid=$(cat /tmp/docker-$port.id)
+			guest_ssh -p $port build@localhost $poweroff_cmd || true
+			sleep 2
+			docker kill $cid && sleep 2 || true
+			rm /tmp/docker-$port.id
+		fi
+		if [ -e /tmp/qemu-$port.id ]
+		then
+			cid=$(cat /tmp/qemu-$port.id)
+			guest_ssh -p $port build@localhost $poweroff_cmd || true
+			sleep 2
+			kill $cid || true
+			rm -f /tmp/qemu-$port.id
+		fi
+	fi
+}
+
+if ! [ -e "$self/$base/functions" ]
+then
+	printf "Missing base image functions '%s'\n" "$base" >&2
+	exit 1
+fi
+
+. $self/$base/functions
+
+case "$cmd" in
+	boot)
+		cmd_boot "$@"
+		;;
+	cleanup)
+		cmd_cleanup "$@"
+		;;
+	sanity-check)
+		sanity_check "$@"
+		;;
+	install)
+		install "$@"
+		;;
+	add-repo)
+		add_repository "$@"
+		;;
+	ssh)
+		port=$1
+		shift
+		guest_ssh -p "$port" build@localhost "$@"
+		;;
+	*)
+		printf "Unknown command '%s'\n" "$cmd" >&2
+		exit 1
+		;;
+esac

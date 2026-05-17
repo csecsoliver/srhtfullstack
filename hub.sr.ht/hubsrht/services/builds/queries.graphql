@@ -1,0 +1,28 @@
+mutation SubmitBuild(
+  $manifest: String!,
+  $note: String!,
+  $tags: [String!],
+  $execute: Boolean,
+  $visibility: Visibility,
+) {
+  submit(
+    manifest: $manifest,
+    note: $note,
+    tags: $tags,
+    execute: $execute,
+    visibility: $visibility,
+    secrets: false,
+  ) {
+    id
+  }
+}
+
+mutation CreateGroup(
+  $jobs: [Int!]!,
+  $triggers: [TriggerInput!]!,
+  $note: String!,
+) {
+  createGroup(jobIds: $jobs, triggers: $triggers, note: $note) {
+    id
+  }
+}

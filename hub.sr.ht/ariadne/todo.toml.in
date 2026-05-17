@@ -1,0 +1,15 @@
+[tool.ariadne-codegen]
+async_client = false
+client_name = "TodoClient"
+schema_path = "@ASSETS@/todo.sr.ht.graphqls"
+queries_path = "hubsrht/services/todo/"
+target_package_path = "hubsrht/services/"
+target_package_name = "todo"
+plugins = ["srht.ariadne.AriadnePlugin"]
+
+[tool.ariadne-codegen.sourcehut]
+service_name = "todo.sr.ht"
+
+[tool.ariadne-codegen.scalars.Time]
+type = "datetime.datetime"
+parse = "srht.graphql.gql_time"

@@ -1,0 +1,15 @@
+[tool.ariadne-codegen]
+async_client = false
+client_name = "ListsClient"
+schema_path = "@ASSETS@/lists.sr.ht.graphqls"
+queries_path = "hubsrht/services/lists/"
+target_package_path = "hubsrht/services/"
+target_package_name = "lists"
+plugins = ["srht.ariadne.AriadnePlugin"]
+
+[tool.ariadne-codegen.sourcehut]
+service_name = "lists.sr.ht"
+
+[tool.ariadne-codegen.scalars.Time]
+type = "datetime.datetime"
+parse = "srht.graphql.gql_time"

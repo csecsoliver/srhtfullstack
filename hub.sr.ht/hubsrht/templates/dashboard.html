@@ -1,0 +1,98 @@
+{% extends "layout.html" %}
+{% import "event.html" as eventutil with context %}
+{% block title %}
+<title>{{cfg("sr.ht", "site-name")}} dashboard</title>
+{% endblock %}
+{% block content %}
+{% if notice %}
+<div class="alert alert-info">{{notice}}</div>
+{% endif %}
+<div class="row">
+  <div class="col-md-4">
+    <p>
+      Welcome back, {{current_user.username}}! This is your project hub, which
+      organizes and indexes projects for users on our platform.
+    </p>
+    <div style="margin-bottom: 1rem">
+      <a
+        href="{{url_for("projects.create_GET")}}"
+        class="btn btn-primary btn-block"
+      >Create new project {{icon("caret-right")}}</a>
+      <a
+        href="{{url_for("public.project_index")}}"
+        class="btn btn-white btn-sm btn-block"
+      >Discover projects on {{cfg('sr.ht', 'site-name')}} {{icon("caret-right")}}</a>
+      <a
+        href="{{url_for("public.getting_started")}}"
+        class="btn btn-link btn-sm btn-block"
+        >Getting started with {{cfg('sr.ht', 'site-name')}} {{icon("caret-right")}}</a>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <div class="row">
+      <div class="col-md-12">
+        <hr class="d-md-none" />
+        <form action="{{url_for("users.projects_GET",
+          owner=current_user.canonical_name)}}"
+        >
+          <input
+            name="search"
+            type="text"
+            placeholder="Search your projects"
+            class="form-control" />
+          {% if search_error %}
+            <div class="invalid-feedback">{{ search_error }}</div>
+          {% endif %}
+        </form>
+        <div class="event-list">
+          {% for project in projects %}
+          <div class="event">
+            <h4>
+              {% if project.visibility.value != 'PUBLIC' %}
+              <small class="text-muted pull-right">{{project.visibility.value.lower()}}</small>
+              {% endif %}
+              <a href="{{url_for("projects.summary_GET",
+                owner=project.owner.canonical_name,
+                project_name=project.name)}}">{{project.name}}</a>
+            </h4>
+            <p>{{project.description}}</p>
+            {% if project.tags %}
+            <div class="tags">
+            {% for tag in project.tags %}
+              <a href="{{url_for("public.project_index", search="#"+tag)}}"
+                 class="tag" rel="nofollow">#{{tag}}</a>
+            {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="pull-right">
+          <a
+            href="{{url_for("users.projects_GET",
+              owner=current_user.canonical_name)}}"
+            class="btn btn-link"
+          >More projects&nbsp;{{icon("caret-right")}}</a>
+        </div>
+        <div class="clearfix"></div>
+      </div>
+    </div>
+    <div class="row" style="margin-top: 1rem">
+      <div class="col-md-12">
+        <div class="event-list project-events">
+          {% for event in events %}
+          {{ eventutil.event(event, project=True) }}
+          {% endfor %}
+        </div>
+        <div class="pull-right">
+          <a
+            href="{{url_for("users.summary_GET", username=current_user.username)}}"
+            class="btn btn-link"
+          >More on your profile&nbsp;{{icon("caret-right")}}</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

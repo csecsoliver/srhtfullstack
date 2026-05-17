@@ -1,0 +1,156 @@
+{% extends "resource-new.html" %}
+{% block title %}
+<title>New mailing list - {{project.name}}</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  {# TODO: Hide this option for any projects which already have lists #}
+  <form method="POST" class="col-lg-8">
+    {{csrf_token()}}
+    <h3>Use a common template</h3>
+    <fieldset class="form-group">
+      <div class="form-check">
+        <label class="form-check-label">
+          <input
+            class="form-check-input"
+            type="radio"
+            name="template"
+            value="public-inbox"
+            checked> public-inbox
+          <small id="visibility-unlisted-help" class="form-text text-muted">
+            Direct users to send patches &amp; questions to a single "public
+            inbox" shared with several other projects.
+          </small>
+        </label>
+      </div>
+      <div class="form-check">
+        <label class="form-check-label">
+          <input
+            class="form-check-input"
+            type="radio"
+            name="template"
+            value="announce-devel">
+          {{project.name}}-announce and
+          {{project.name}}-devel
+          <small id="visibility-unlisted-help" class="form-text text-muted">
+            Separate mailing lists for low-frequency project announcements,
+            and for patches &amp; development.
+          </small>
+        </label>
+      </div>
+      <div class="form-check">
+        <label class="form-check-label">
+          <input
+            class="form-check-input"
+            type="radio"
+            name="template"
+            value="announce-devel-discuss">
+          {{project.name}}-announce,
+          {{project.name}}-devel, and
+          {{project.name}}-discuss
+          <small id="visibility-public-help" class="form-text text-muted">
+            One list for announcements, one for patches &amp; development,
+            and another for user support and discussion.
+          </small>
+        </label>
+      </div>
+    </fieldset>
+
+    <div class="flex-grow-1 d-flex flex-row justify-content-end">
+      <button
+        type="submit"
+        class="btn btn-primary align-self-end"
+        name="from-template"
+      >Create these mailing lists {{icon("caret-right")}}</button>
+    </div>
+  </form>
+</div>
+<form method="POST" class="row">
+  {{csrf_token()}}
+  <div class="col-lg-8">
+    <h3 style="margin-top: 1rem">
+      Or create a new mailing list
+    </h3>
+    <div class="form-group">
+      <label for="{{ typename }}">Name</label>
+      <input
+        type="text"
+        name="name"
+        id="name"
+        class="form-control {{ valid.cls("name") }}"
+        value="{{ name or project.name }}" />
+      {{ valid.summary("name") }}
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea
+          type="text"
+          name="description"
+          id="description"
+          class="form-control {{valid.cls("description")}}"
+          rows="5"
+          aria-describedby="description-help-text"
+          placeholder="Introduce this mailing list to users and explain the posting rules. Markdown supported"
+        >{{ description or "" }}</textarea>
+        {{valid.summary("description")}}
+      </div>
+    </div>
+    <div class="flex-grow-1 d-flex flex-row justify-content-end">
+      <button
+        type="submit"
+        class="btn btn-primary align-self-end"
+        name="create"
+      >Create new mailing list {{icon("caret-right")}}</button>
+    </div>
+  </div>
+</form>
+{% if any(lists) or search %}
+<div class="row">
+  <div class="col-lg-8">
+    <h3 style="margin-top: 1rem">
+      Or add an existing mailing list
+    </h3>
+    {# TODO: Pagination #}
+    <form class="form-group" method="POST">
+      {{csrf_token()}}
+      <input
+        name="search"
+        type="text"
+        placeholder="Search mailing lists"
+        class="form-control{% if search_error %} is-invalid{% endif %}"
+        value="{{ search if search else "" }}" />
+      {% if search_error %}
+        <div class="invalid-feedback">{{ search_error }}</div>
+      {% endif %}
+    </form>
+    <form method="POST" class="event-list select-resource">
+      {{csrf_token()}}
+      {% for list in lists %}
+      <div class="event">
+        <h3>
+          {% if list["id"] in existing %}
+          <button
+            type="submit"
+            class="pull-right btn btn-primary btn-lg"
+            disabled
+          >Already added&nbsp;{{ icon("caret-right") }}</button>
+          {% else %}
+          <button
+            type="submit"
+            name="existing-{{ list["rid"] }}"
+            class="pull-right btn btn-primary btn-lg"
+          >Select list&nbsp;{{ icon("caret-right") }}</button>
+          {% endif %}
+          <a
+            href="{{get_origin("lists.sr.ht",
+              external=True)}}/{{ list.owner.canonical_name }}/{{list.name}}"
+            target="_blank"
+            rel="noopener"
+          >{{ list["name"] }}</a>
+        </h3>
+      </div>
+      {% endfor %}
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

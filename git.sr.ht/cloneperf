@@ -1,0 +1,16 @@
+#!/bin/sh
+ts=$(date +"%Y-%m-%d_%H:%M:%S")
+log=cloneperf-$ts.log
+host=${host:-git.sr.ht}
+printf 'cloneperf host=%s ts=%s notes=%s\n\n' "$host" "$ts" "$*" | tee -a $log
+
+printf '%s\n' "$ ssh git@$host" | tee -a $log
+/usr/bin/time -p ssh git@$host 2>&1 | tee -a $log
+
+printf '\n' | tee -a $log
+
+printf '%s\n' "$ git clone git@$host:~sircmpwn/scdoc" | tee -a $log
+/usr/bin/time -p git clone git@$host:~sircmpwn/scdoc /tmp/scdoc-$ts 2>&1 | tee -a $log
+rm -rf /tmp/scdoc-$ts
+
+printf "\nResults written to %s\n" "$log"

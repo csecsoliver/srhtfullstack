@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8">
+    <p>
+      Welcome to <strong>{{domain}}</strong>! This provides continuous
+      integration services for
+      <a href="{{cfg("sr.ht", "site-info")}}">
+        {{cfg("sr.ht", "site-name")}}</a>,
+      {{cfg("sr.ht", "site-blurb")}}.
+      Features of this service include:
+    </p>
+    <ul>
+      <li>Runs fully virtualised builds on various Linux distros and BSDs</li>
+      <li>Run anonymous jobs that aren't tied to a repository</li>
+      <li>Post-build triggers for email, webhooks, etc</li>
+      <li>Powerful API for complex build scenarios</li>
+    </ul>
+    <a
+      class="btn btn-primary"
+      href="{{get_origin("meta.sr.ht", external=True)}}/register"
+    >Register here {{icon('caret-right')}}</a>
+    or
+    <a href="{{login_url}}">
+      Log in {{icon('caret-right')}}
+    </a>
+    to get started.
+  </div>
+</div>
+{% endblock %}

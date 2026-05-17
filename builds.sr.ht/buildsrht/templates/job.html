@@ -1,0 +1,233 @@
+{% extends "layout-full.html" %}
+{% block title %}
+<title>
+  build #{{ job.id }} - {{ job.status.value }}
+</title>
+{% endblock %}
+{% block head %}
+{% if job.status.value == "pending" or job.status.value == "queued" %}
+<meta id="refresh" http-equiv="refresh" content="10">
+{% endif %}
+{% if job.status.value == "running" %}
+<meta id="refresh" http-equiv="refresh" content="5">
+{% endif %}
+{% endblock %}
+{% block body %} 
+<div class="header-tabbed">
+  <div class="container-fluid">
+    <h2>
+      <a href="{{ url_for("jobs.user", username=job.owner.username) }}">{{ job.owner }}</a>/<wbr
+     >#{{ job.id }}
+    </h2>
+    <ul class="nav nav-tabs">
+      {% if job.visibility.value != "PUBLIC" %}
+      <li
+        class="nav-item nav-text vis-{{job.visibility.value.lower()}}"
+        {% if job.visibility.value == "UNLISTED" %}
+        title="This job is only visible to those who know the URL."
+        {% elif job.visibility.value == "PRIVATE" %}
+        title="This job is only visible to those who were invited to view it."
+        {% endif %}
+      >
+        {% if job.visibility.value == "UNLISTED" %}
+        Unlisted
+        {% elif job.visibility.value == "PRIVATE" %}
+        Private
+        {% endif %}
+      </li>
+      {% endif %}
+      {% if current_user and current_user.id == job.owner_id %}
+      <li class="nav-item">
+        <a class="nav-link" href="{{url_for("settings.details_GET",
+          username=job.owner.username,
+          job_id=job.id)}}"
+        >settings</a>
+      </li>
+      {% endif %}
+    </ul>
+  </div>
+</div>
+<div class="container-fluid">
+  <section class="row">
+    <div class="col-lg-3 col-md-12">
+      <h2>
+        {{icon(icon_map.get(job.status), cls=status_map.get(job.status, ""))}}
+        {{ job.status.value }}
+      </h2>
+      <dl>
+        {% if job.note %}
+        <p>{{ job.note | md }}</p>
+        {% endif %}
+        <dt>Owner</dt>
+        <dd>
+          <a href="/~{{ job.owner.username }}">
+            ~{{ job.owner.username }}
+          </a>
+        </dd>
+        <dt>Created</dt>
+        <dd>{{ job.created | date }}</dd>
+        <dt>Updated</dt>
+        <dd>{{ job.updated | date }}</dd>
+        <dt>Build manifest</dt>
+	<dd><a href="/~{{ job.owner.username }}/job/{{ job.id }}/manifest">view manifest »</a></dd>
+      </dl>
+      {% if current_user and job.status.value in [
+        "success", "failed", "timeout", "cancelled"
+      ] and can_submit %}
+      <form style="margin-bottom: 0.5rem" method="POST" action="/submit">
+        {{csrf_token()}}
+        <input
+          type="hidden"
+          name="note"
+          value="Resubmission of build [#{{job.id}}](/~{{ job.owner.username }}/job/{{ job.id }})"
+        />
+        <button class="btn btn-primary btn-block">
+          Resubmit build
+          {{ icon("caret-right") }}
+        </button>
+        <input type="hidden" name="manifest" value="{{job.manifest}}" />
+        <input type="hidden" name="visibility" value="{{job.visibility.value}}" />
+        <input type="hidden" name="tags" value="{{job.tags}}" />
+      </form>
+      <form>
+        <a
+          href="{{ url_for("jobs.resubmit_GET", job_id=job.id) }}"
+          class="btn btn-default btn-block"
+        >
+          Edit &amp; resubmit
+          {{ icon("caret-right") }}
+        </a>
+      </form>
+      {% elif (current_user and
+        (current_user.id == job.owner_id or current_user.user_type.value == "admin") and
+        job.status.value == "running") %}
+      <form method="POST" action="{{ url_for("jobs.cancel", job_id=job.id) }}">
+        {{csrf_token()}}
+        <button class="btn btn-danger btn-block">
+          Cancel build
+        </button>
+      </form>
+      {% endif %}
+      {% if any(job.artifacts) %}
+      <h4>Artifacts</h4>
+      <table class="table table-sm">
+      {% for artifact in job.artifacts %}
+        <tr>
+          <td style="
+              max-width: 200px;
+              overflow-x: hidden;
+              text-overflow: ellipsis;
+          ">
+            <span title="{{artifact.path}}">
+              {{artifact.name}}
+            </span>
+          </td>
+          <td>
+            {{naturalsize(artifact.size, binary=True)}}
+          </td>
+          <td>
+            {% if artifact.created > min_artifact_date %}
+            <a
+              rel="noopener nofollow"
+              href="{{artifact.url}}"
+            >download »</a>
+            {% else %}
+            <span class="text-muted">(pruned after 90 days)</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </table>
+      <div class="alert alert-warning">
+        Build artifacts are pruned after 90 days.
+      </div>
+      {% endif %}
+      <h4>Tasks</h4>
+      <table class="table table-sm">
+        <tr class="text-muted">
+          <td></td>
+          <td>
+            <a href="#setup">view log »</a>
+          </td>
+        </tr>
+      {% for task in sort_tasks(job.tasks) %}
+        <tr>
+          <td>
+            <span title="{{ task.status.value }}">
+              {{icon(icon_map.get(task.status), cls=status_map.get(task.status, ""))}}
+              {{task.name}}
+            </span>
+          </td>
+          <td>
+            <a href="#task-{{ task.name }}">view log »</a>
+          </td>
+        </tr>
+      {% endfor %}
+      </table>
+      <a class="to-bottom" href="#bottom">go to bottom »</a><br>
+      <a class="to-top" href="#">go to top »</a>
+    </div>
+    <div class="col-lg-9 col-md-12">
+      {% if current_user and current_user.id == job.owner_id %}
+      {% if (job.status.value == "failed" and
+          datetime.utcnow() < job.updated + timedelta(minutes=10)) %}
+      <div class="alert alert-danger">
+        <strong>This build job failed.</strong> You may log into the failed
+        build environment within 10 minutes to examine the results with the
+        following command:
+        <pre
+          style="margin-bottom: 0; margin-top: 1rem;"
+          >ssh -t {{build_user}}@{{job.runner}} connect {{job.id}}</pre>
+      </div>
+      {% endif %}
+      {% endif %}
+      {% if job.status.value not in ["queued", "pending"] %}
+        {% for log in logs %}
+        <details open>
+          {% if log["name"] %}
+          <summary id="task-{{log["name"]}}">{{ log["name"] }}</summary>
+          {% else %}
+          <summary id="setup" class="text-muted">setup</summary>
+          {% endif %}
+          <table class="table-code">
+            <tr>
+              {{log["log"]}}
+            </tr>
+          </table>
+        </details>
+        {% endfor %}
+      {% endif %}
+      {% if job.status.value == "success" or job.status.value == "failed" %}
+      <div class="alert {{ "alert-success" if job.status.value == "success" else "alert-danger" }}">
+        Build complete: <strong>{{ job.status.value }}</strong> {{ job.updated | date }}
+        (took {{(job.updated - job.created) | date}})
+      </div>
+      {% endif %}
+      <a id="bottom"></a>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPL-3.0-only
+(function() {
+  document.addEventListener("DOMContentLoaded", function() {
+    var meta_refresh = document.getElementById("refresh");
+    if (meta_refresh) {
+      var timeout = parseInt(meta_refresh.getAttribute("content"));
+      meta_refresh.parentNode.removeChild(meta_refresh);
+      window.setTimeout(function() {
+        location.reload();
+      }, timeout * 1000);
+    }
+    if (window.location.hash === "#bottom") {
+      window.setTimeout(function() {
+        document.documentElement.scrollTop = document.documentElement.scrollHeight;
+      }, 100);
+    }
+  });
+})();
+// @license-end
+</script>
+{% endblock %}

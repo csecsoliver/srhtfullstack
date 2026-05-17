@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+from buildsrht.manifest import Manifest
+from getopt import getopt
+import json
+import os
+import requests
+import sys
+import yaml
+
+opts, args = getopt(sys.argv[1:], "n:p:t:u:a:f:")
+usage = f"Usage: {sys.argv[0]} [-n note] [-u builds url] [-p images path] [-a arch] [-f from image] image"
+
+if len(args) != 1:
+    print(usage)
+    sys.exit(1)
+
+opts = { key: value for (key, value) in opts }
+
+with open("/etc/sr.ht/image-refresh-token") as f:
+    token = f.read().strip()
+
+arch = opts.get("-a", "x86_64")
+note = opts.get("-n")
+path = opts.get("-p", "/var/lib/images")
+url = opts.get("-u", "https://builds.sr.ht")
+from_image = opts.get("-f", None)
+image = args[0]
+
+if "/" in image:
+    [image, release] = image.split("/")
+else:
+    release = None
+
+with open(os.path.join(path, image, "build.yml")) as f:
+    manifest = Manifest(yaml.safe_load(f.read()))
+
+if release:
+    if not manifest.environment:
+        manifest.environment = dict()
+    manifest.environment["release"] = release
+    manifest.environment["arch"] = arch
+
+if from_image:
+    manifest.image = from_image
+
+url = f"{url}/query"
+query = """
+mutation SubmitBuild($manifest: String!, $note: String!, $tags: [String!]!) {
+    submit(manifest: $manifest, note: $note, tags: $tags, secrets: true, visibility: PUBLIC) {
+        id
+    }
+}
+"""
+
+r = requests.post(url, json={
+    "query": query,
+    "variables": {
+        "manifest": manifest.to_yaml(),
+        "note": note,
+        "tags": ["refresh", image] + ([release] if release else [])
+    },
+}, headers={
+    "Authorization": f"Bearer {token}"
+})
+
+print(r.json())
+sys.exit(r.status_code != 200)

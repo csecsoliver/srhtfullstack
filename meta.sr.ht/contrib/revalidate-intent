@@ -1,0 +1,29 @@
+#!/usr/bin/python3
+#
+# This script is designed to re-validate a payment which was successfully
+# collected from the user but unsucessfully applied to their account, for one
+# reason or another.
+#
+# 1. Fix the underlying cause of the failure (e.g. software bug, ceph outage,
+#    whatever).
+# 2. Update their subscription to PENDING and set the payment_intent to the
+#    appropriate intent ID in the database
+# 3. Run this script to re-validate the payment
+#
+# This should make their account consistent with the completed payment.
+import sys
+from metasrht.types import User
+from metasrht.graphql import Client
+from srht.config import cfg
+from srht.database import DbSession
+
+db = DbSession(cfg("meta.sr.ht", "connection-string"))
+db.init()
+
+user = sys.argv[1]
+intent = sys.argv[2]
+
+user = User.query.filter(User.username == user).one_or_none()
+client = Client(user=user)
+intent = client.finalize_payment_intent(intent).intent
+print(intent)

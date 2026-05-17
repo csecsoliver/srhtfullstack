@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>TOTP challenge - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    <h3>
+      TOTP Challenge
+    </h3>
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    <p>
+      {% if challenge_type == "reset" %}
+      This account has two-factor authentication enabled. You must complete a
+      verification challenge in order to reset your password.
+      {% elif challenge_type == "disable_totp" %}
+      In order to disable two-factor authentication, you must be able to
+      complete a verification challenge.
+      {% endif %}
+      Please enter your TOTP code to continue:
+    </p>
+    <form method="POST" action="/login/challenge/totp">
+      {{csrf_token()}}
+      <div class="form-group">
+        <label for="code">Code</label>
+        <input
+           type="number"
+           name="code"
+           id="code"
+           class="form-control {{valid.cls("code")}}"
+           required
+           autocomplete="one-time-code"
+           autofocus />
+        {{valid.summary("code")}}
+      </div>
+      <div class="alert alert-info">
+        If you have lost access to your 2FA device, you may
+        <a href="{{url_for("auth.totp_recovery_GET")}}">use a recovery code</a>
+        instead. Otherwise,
+        <a href="mailto:{{cfg('sr.ht', 'owner-email')}}">contact support</a>.
+      </div>
+      <button class="btn btn-primary" type="submit">
+        Continue {{icon('caret-right')}}
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

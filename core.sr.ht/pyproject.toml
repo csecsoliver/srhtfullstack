@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "srht"
+dynamic = ["version"]
+description = "sr.ht core modules"
+readme = "README.md"
+authors = [{name = "Drew DeVault", email = "sir@cmpwn.com"}]
+dependencies = [
+      "flask",
+      "humanize",
+      "sqlalchemy",
+      "sqlalchemy-utils",
+      "psycopg2",
+      "markdown",
+      "mistletoe",
+      "bleach",
+      "requests",
+      "BeautifulSoup4",
+      "pygments",
+      "cryptography",
+      "prometheus_client",
+      "redis",
+      "celery",
+]
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+
+[project.urls]
+repository = "https://git.sr.ht/~sircmpwn/core.sr.ht"
+
+[tool.setuptools]
+# This defaults to true, but we explicitly specify what we want included in the
+# package via packages and tool.setuptools.package-data below.
+include-package-data = false
+packages = [
+    "srht",
+    "srht.app",
+    "srht.ariadne",
+    "srht.graphql",
+    "srht.oauth",
+    "srht.icons",
+    "srht.templates",
+    "srht.webhook",
+]
+script-files = [
+    "sr.ht-update-profiles",
+    "sr.ht-keygen",
+]
+[tool.setuptools.package-data]
+"srht.templates" = ['*.html']
+"srht.icons" = ['*']
+
+[tool.setuptools_scm]

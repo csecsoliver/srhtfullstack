@@ -1,0 +1,50 @@
+mutation UploadArtifact(
+  $repoID: Int!,
+  $revspec: String!,
+  $file: Upload!,
+) {
+  artifact: uploadArtifact(repoId: $repoID, revspec: $revspec, file: $file) {
+    id
+  }
+}
+
+query GetArtifactURL(
+  $owner: String!,
+  $repo: String!,
+  $ref: String!,
+  $filename: String!,
+) {
+  user(username: $owner) {
+    repository(name: $repo) {
+      reference(name: $ref) {
+        artifact(filename: $filename) {
+          filename
+          url
+        }
+      }
+    }
+  }
+}
+
+query GetArtifact(
+  $owner: String!,
+  $repo: String!,
+  $ref: String!,
+  $filename: String!,
+) {
+  user(username: $owner) {
+    repository(name: $repo) {
+      reference(name: $ref) {
+        artifact(filename: $filename) {
+          id
+        }
+      }
+    }
+  }
+}
+
+mutation DeleteArtifact($id: Int!) {
+  deleteArtifact(id: $id) {
+    id
+  }
+}

@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="header-tabbed">
+  <div class="container">
+    <ul class="nav nav-tabs">
+      <h2>
+        {{ owner.canonical_name }}/<wbr>{{ wiki.name }}
+      </h2>
+      <li class="nav-item">
+        <a class="nav-link" href="/{{ owner.canonical_name }}/{{ wiki.name }}">
+          {{icon("caret-left")}} back
+        </a>
+      </li>
+      <li class="nav-item">
+        <a
+          class="nav-link \
+          {% if request.path.endswith("info") %}active{% endif %}"
+          href="{{ url_for("manage.info",
+            owner_name=owner.canonical_name, wiki_name=wiki.name) }}"
+        >info</a>
+      </li>
+      <li class="nav-item">
+        <a
+          class="nav-link \
+          {% if request.path.endswith("delete") %}active{% endif %}"
+          href="{{ url_for("manage.delete",
+            owner_name=owner.canonical_name, wiki_name=wiki.name) }}"
+        >delete</a>
+      </li>
+    </ul>
+  </div>
+</div>
+<div class="container">
+  {% block content %}{% endblock %}
+</div>
+{% endblock %}

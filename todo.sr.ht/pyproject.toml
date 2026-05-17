@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "todosrht"
+dynamic = ["version"]
+description = "todo.sr.ht website"
+readme = "README.md"
+authors = [{name = "Drew DeVault", email = "sir@cmpwn.com"}]
+dependencies = [
+    "srht",
+]
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+
+[project.urls]
+repository = "https://git.sr.ht/~sircmpwn/todo.sr.ht"
+
+[tool.setuptools]
+# This defaults to true, but we explicitly specify what we want included in the
+# package via packages and tool.setuptools.package-data below.
+include-package-data = false
+packages = [
+    "todosrht",
+    "todosrht.blueprints",
+    "todosrht.graphql",
+    "todosrht.templates",
+    "todosrht.types",
+]
+script-files = [
+    "todo.sr.ht-lmtp",
+]
+[tool.setuptools.package-data]
+"todosrht" = ['default_query.graphql', 'schema.graphqls']
+"todosrht.templates" = ['*.html', '*.js']
+
+[tool.setuptools_scm]
+
+[tool.ariadne-codegen]
+async_client = false
+schema_path = "api/graph/schema.graphqls"
+queries_path = "todosrht/graphql/"
+target_package_path = "todosrht"
+target_package_name = "graphql"
+plugins = ["srht.ariadne.AriadnePlugin"]
+
+[tool.ariadne-codegen.sourcehut]
+service_name = "todo.sr.ht"
+
+[tool.ariadne-codegen.scalars.Time]
+type = "datetime.datetime"
+parse = "srht.graphql.gql_time"

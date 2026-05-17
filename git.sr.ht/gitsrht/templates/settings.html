@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+
+{% block body %}
+<div class="header-tabbed">
+  <div class="container">
+    <h2>
+      <a href="/{{ owner.canonical_name }}">{{ owner.canonical_name }}</a>/<wbr
+     >{{ repo.name }}
+    </h2>
+    <ul class="nav nav-tabs">
+    {% block tabs %}
+    {% include "settingstabs.html" %}
+    {% endblock %}
+    </div>
+  </div>
+</div>
+<div class="container">
+  {% block content %}{% endblock %}
+</div>
+{% endblock %}

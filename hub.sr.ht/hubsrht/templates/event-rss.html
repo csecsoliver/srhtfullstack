@@ -1,0 +1,24 @@
+{% macro event(event, project=False) %}
+<item>
+  <pubDate>{{event.created}}</pubDate>
+  <guid>{{project.owner.canonical_name}}/{{project.name}}#{{event.id}}</guid>
+{% if event.event_type == EventType.source_repo_added %}
+  <link>{{event.source_repo.url()}}</link>
+  <title>{{event.source_repo.owner.canonical_name}}/{{event.source_repo.name}}</title>
+  <description>New {{event.source_repo.repo_type.value}} repository added</description>
+{% elif event.event_type == EventType.mailing_list_added %}
+  <link>{{event.mailing_list.url()}}</link>
+  <title>{{event.mailing_list.owner.canonical_name}}/{{event.mailing_list.name}}</title>
+  <description>New mailing list added</description>
+{% elif event.event_type == EventType.tracker_added %}
+  <link>{{event.tracker.url()}}</link>
+  <title>{{event.tracker.owner.canonical_name}}/{{event.tracker.name}}</title>
+  <description>New ticket tracker added</description>
+{% elif event.event_type == EventType.external_event %}
+  <link>{{event.external_url or ""}}</link>
+  <title>{{event.external_summary_plain or ""}}</title>
+  <description>{{event.external_details_plain or ""}}</description>
+{% else %}
+{% endif %}
+</item>
+{% endmacro %}

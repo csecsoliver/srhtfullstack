@@ -1,0 +1,173 @@
+@import "base";
+$darker: darken($gray-900, 6);
+
+.btn-white {
+  @extend .btn;
+  padding: 0.25rem 0;
+  font-size: 0.9rem;
+
+  border-color: $gray-500;
+  background: $white;
+  color: $gray-900 !important;
+
+  &:hover {
+    background: $white;
+    color: $black !important;
+    text-decoration: none;
+    border-color: $gray-900;
+  }
+
+  @media(prefers-color-scheme: dark) {
+    background: $darker;
+    color: $white !important;
+
+    &:hover {
+      background: $gray-900;
+      color: $white !important;
+      border-color: $gray-400;
+    }
+  }
+
+  &.btn-sm {
+    padding: 0.2rem 0.25rem;
+  }
+
+  transition: border-color 0.2s linear;
+}
+
+.service-list {
+  .col-md-4 {
+    margin-bottom: 1rem;
+  }
+}
+
+.project-events {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  flex-wrap: wrap;
+
+  .view-more {
+    flex-grow: 1;
+    text-align: right;
+  }
+
+  .event {
+    width: calc(50% - 1rem);
+    margin: 0;
+
+    pre {
+      background: transparent;
+      margin-bottom: 0;
+    }
+
+    code {
+      font-size: 0.95rem;
+    }
+
+    p {
+      margin-bottom: 0;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow-x: hidden;
+    }
+  }
+}
+
+.resource-list {
+  .btn, .btn-white {
+    padding: 0.25rem 0.75rem;
+  }
+
+  .col-md-4 {
+    margin-bottom: 1rem;
+  }
+}
+
+.checklist {
+  list-style: none;
+  padding-left: 0;
+
+  li:not(:last-child) {
+    margin-bottom: 0.5rem;
+  }
+
+  .icon {
+    max-width: 0.9rem;
+    min-width: 0.9rem;
+  }
+
+  small {
+    padding-left: 1.2rem;
+    display: inline-block;
+  }
+}
+
+.nav-tabs {
+  .nav-item .btn-primary {
+    color: white;
+
+    &:hover {
+      color: white !important;
+    }
+  }
+}
+
+.select-resource {
+  h3 {
+    border: none;
+    margin-bottom: 0;
+  }
+}
+
+.inline-legend {
+  float: left;
+  margin-right: 1rem;
+  display: inline;
+  width: inherit;
+}
+
+.project-summary {
+  h2, h3, h4 {
+    &:not(:first-child) {
+      margin-top: 2rem;
+    }
+  }
+
+  img {
+    max-width: 100%;
+  }
+}
+
+.feature-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 1rem;
+
+  .event {
+    margin: 0;
+  }
+}
+
+.tags {
+  a {
+    @extend .text-muted;
+  }
+
+  .tag:not(:last-child) {
+    margin-right: 0.5rem;
+  }
+}
+
+.event-list .event p {
+  margin-bottom: 0;
+}
+
+h5 .tags {
+  font-weight: normal;
+  font-size: 0.9rem;
+}
+
+.readme > pre {
+  background: transparent;
+}

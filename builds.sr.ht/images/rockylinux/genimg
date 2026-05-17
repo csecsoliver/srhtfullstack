@@ -1,0 +1,146 @@
+#!/bin/sh -eux
+
+# Network Block Device used to interact with the QCOW2 image.
+NBD_DEVICE=/dev/nbd0
+
+echo "$release" >/dev/null # fail on -u if release unset
+arch=${1:-x86_64}
+case $arch in
+	x86_64)
+		iface=ens3
+		;;
+	*)
+		echo "unsupported architecture $arch"
+		exit 1
+		;;
+esac
+
+cleanup() {
+	# The order here is important if you don't want to hose your mounts
+	umount /mnt/dev/pts 2>/dev/null || true
+	umount /mnt/dev/shm 2>/dev/null || true
+	umount /mnt/dev 2>/dev/null || true
+	umount /mnt/proc 2>/dev/null || true
+	umount /mnt/run 2>/dev/null || true
+	umount /mnt/sys 2>/dev/null || true
+	umount /mnt/boot 2>/dev/null || true
+	umount /mnt 2>/dev/null || true
+	qemu-nbd --disconnect $NBD_DEVICE || true
+}
+
+run_root() {
+	chroot /mnt /usr/bin/env \
+		PATH=/sbin:/usr/sbin:/bin:/usr/bin \
+		sh -c "$*"
+}
+
+mkdir -p "$arch"
+
+qemu-img create -f qcow2 "$arch/root.img.qcow2" 24G
+modprobe nbd max_part=16
+qemu-nbd --connect=$NBD_DEVICE "$arch/root.img.qcow2"
+trap cleanup EXIT
+
+# Looks like qemu-nbd is non-blocking. Wait one second to make sure $NBD_DEVICE
+# is available.
+sleep 1
+
+sfdisk --no-reread $NBD_DEVICE <<EOF
+1M,100M,L,*
+,2048M,S
+,,L
+EOF
+
+mkfs.ext4 ${NBD_DEVICE}p1
+mkswap ${NBD_DEVICE}p2
+mkfs.ext4 ${NBD_DEVICE}p3
+
+mount ${NBD_DEVICE}p3 /mnt
+mkdir /mnt/boot
+mount ${NBD_DEVICE}p1 /mnt/boot
+
+curl -o /etc/pki/rpm-gpg/RPM-GPG-KEY-Rocky-$release https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-Rocky-$release
+sed \
+   -e 's|gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-rockyofficial|gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-Rocky-$releasever|' \
+   -i /etc/yum.repos.d/Rocky-*.repo
+dnf -y -q \
+	--releasever="$release" \
+	--installroot=/mnt \
+	--disablerepo='*' \
+	--enablerepo=appstream \
+	--enablerepo=baseos\
+	--enablerepo=extras \
+	--setopt=install_weak_deps=False install\
+	bash basesystem systemd passwd dnf rocky-release NetworkManager
+
+# Disable SELinux, which is not useful for a build service.
+run_root echo SELINUX=disabled > /etc/selinux/config
+
+mount --bind /dev /mnt/dev
+mount --bind /dev/pts /mnt/dev/pts
+mount --bind /dev/shm /mnt/dev/shm
+mount --bind /proc /mnt/proc
+mount --bind /run /mnt/run
+mount --bind /sys /mnt/sys
+
+cp /etc/resolv.conf /mnt/etc/resolv.conf
+
+echo 'nameserver 8.8.8.8' >/mnt/etc/resolv.conf
+echo 'nameserver 9.9.9.9' >>/mnt/etc/resolv.conf
+echo 'nameserver 1.1.1.1' >>/mnt/etc/resolv.conf
+
+run_root systemd-machine-id-setup
+
+# Rebuild package DB for RL9
+if [[ $release = "9" ]]
+then
+run_root rpmdb --rebuilddb --define '"_db_backend sqlite"'
+fi
+
+# Enable EPEL
+run_root dnf -y -q install https://dl.fedoraproject.org/pub/epel/epel-release-latest-$release.noarch.rpm 
+
+# Delay installing systemd-udev because it accesses /dev/urandom.
+run_root dnf -y -q install git mercurial openssh-server sudo systemd-udev chrony
+run_root dnf -y -q groupinstall '"Development Tools"'
+run_root dnf -y -q install kernel grub2
+
+# Add support for virtio block devices at boot time.
+cat > /mnt/etc/dracut.conf.d/virtio-blk.conf <<EOF
+add_drivers="virtio-blk"
+EOF
+kernel_version=$(ls /mnt/boot | grep "vmlinuz.*.$arch" | cut -d- -f2-)
+run_root dracut --force --kver "$kernel_version"
+
+run_root grub2-install --target=i386-pc $NBD_DEVICE
+run_root grub2-mkconfig -o /boot/grub2/grub.cfg
+
+run_root ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+run_root systemctl enable NetworkManager chronyd
+
+run_root groupadd sudo
+run_root useradd -mG sudo build
+run_root passwd -d build
+echo '%sudo ALL=(ALL) NOPASSWD: ALL' >>/mnt/etc/sudoers
+
+echo "PermitEmptyPasswords yes" >>/mnt/etc/ssh/sshd_config
+echo ssh >>/mnt/etc/securetty
+run_root systemctl enable sshd
+
+boot_uuid=$(blkid --match-tag UUID --output value ${NBD_DEVICE}p1)
+swap_uuid=$(blkid --match-tag UUID --output value ${NBD_DEVICE}p2)
+root_uuid=$(blkid --match-tag UUID --output value ${NBD_DEVICE}p3)
+cat >>/mnt/etc/fstab <<EOF
+UUID=$boot_uuid /boot ext4 rw,relatime,data=ordered 0 0
+UUID=$swap_uuid swap  swap defaults                 0 0
+UUID=$root_uuid /     ext4 rw,relatime,data=ordered 0 0
+EOF
+
+cat >/mnt/home/build/.gitconfig <<EOF
+[user]
+  name = builds.sr.ht
+  email = builds@sr.ht
+EOF
+run_root chown build:build /home/build/.gitconfig
+
+sync

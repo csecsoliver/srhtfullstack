@@ -1,0 +1,22 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>Personal access token registered - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <dl>
+      <dt>Personal Access Token</dt>
+      <dd><textarea readonly class="width-full" rows="1">{{secret}}</textarea></dd>
+    </dl>
+    <p>
+      Your access token <strong>will never be shown to you again</strong>. Keep
+      this secret. It will expire {{expiry | date}}.
+    </p>
+    <a
+      href="{{url_for('oauth2.dashboard')}}"
+      class="btn btn-primary"
+    >Continue {{icon('caret-right')}}</a>
+  </div>
+</div>
+{% endblock %}

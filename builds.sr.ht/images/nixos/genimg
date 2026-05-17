@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+set -e
+
+release="${1:-unstable}"
+arch="${2:-x86_64}"
+
+if [ "$(uname -m)" != "${arch}" ]
+then
+	echo "Cross building is not supported" >&2
+	exit 1
+fi
+
+# In a non-nixos system we first need to install nix
+if ! [ -x "$(command -v nix)" ]
+then
+	# Prepare /nix
+	sudo mkdir /nix
+	sudo chown build /nix
+	# Install nix
+	curl -L https://nixos.org/nix/install > ~/install-nix
+	sh ~/install-nix --no-daemon --no-channel-add
+	# Activate nix
+	. ~/.nix-profile/etc/profile.d/nix.sh
+fi
+
+# Check that nix works
+nix --extra-experimental-features nix-command store ping || nix ping-store # legacy fallback
+
+# We switch to a nixos channel.
+# This is important because the nixos-* channels,
+# in contrast with the nixpkgs-* ones, must pass some additional
+# tests (such as being able to boot) before advancing.
+nix-channel --add "https://nixos.org/channels/nixos-${release}" nixpkgs
+nix-channel --update
+# Generate the image
+nix-build image.nix
+# result/root.img.qcow2 is on a read-only mount. Copy and chmod it.
+mkdir -p "${release}/${arch}"
+cp "result/nixos.qcow2" "${release}/${arch}/root.img.qcow2"
+chmod u+w "${release}/${arch}/root.img.qcow2"
+

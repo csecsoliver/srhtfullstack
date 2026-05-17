@@ -1,0 +1,5 @@
+query CanSubmitBuilds {
+  me {
+    receivesPaidServices
+  }
+}

@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+import json
+from datetime import datetime
+from metasrht.app import db
+from metasrht.types import OAuthToken, RevocationUrl
+from srht.webhook.celery import async_request
+
+cutoff = datetime.utcnow()
+
+for token in OAuthToken.query.filter(OAuthToken.expires < cutoff).all():
+    print(f"Issuing revocations for expired token {token.token_hash}")
+    for revocation in (RevocationUrl.query
+            .filter(RevocationUrl.token_id == token.id)).all():
+        async_request.delay(revocation.url, json.dumps({
+            "token_hash": token.token_hash,
+        }), {"Content-Type": "application/json"})
+        db.session.delete(revocation)
+    db.session.commit()

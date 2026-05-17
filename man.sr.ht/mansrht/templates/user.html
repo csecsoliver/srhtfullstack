@@ -1,0 +1,87 @@
+{% extends "man.html" %}
+
+{% block content %}
+<div class="container">
+  <div class="row">
+    <section class="col-md-4">
+      <h2>
+        ~{{ user.username }}
+      </h2>
+      {% if user.location %}
+      <p>{{user.location}}</p>
+      {% endif %}
+      {% if user.url %}
+      <p>
+        <a
+          href="{{user.url}}"
+          target="_blank"
+          rel="me noopener noreferrer nofollow"
+        >{{user.url}}</a>
+      </p>
+      {% endif %}
+      {% if user.bio %}
+      {{user.bio | md}}
+      {% endif %}
+      {% if current_user and current_user.username == user.username %}
+      <a
+        href="{{url_for('create.create_GET')}}"
+        class="btn btn-primary btn-block"
+      >Create new wiki {{icon("caret-right")}}</a>
+      {% endif %}
+      {% if notice %}
+      <div class="alert alert-success">
+        {{ notice }}
+      </div>
+      {% endif %}
+    </section>
+    <section class="col-md-8">
+      {% if len(wikis) == 0 %}
+      {% if search %}
+      <form>
+        <input
+          name="search"
+          type="text"
+          placeholder="Search"
+          class="form-control"
+          value="{{ search if search else "" }}" />
+      </form>
+      <p>Nothing found.</p>
+      {% else %}
+      <p>This user has no wikis.</p>
+      {% endif %}
+      {% else %}
+      <form>
+        <input
+          name="search"
+          type="text"
+          placeholder="Search"
+          class="form-control{% if search_error %} is-invalid{% endif %}"
+          value="{{ search if search else "" }}" />
+        {% if search_error %}
+          <div class="invalid-feedback">{{ search_error }}</div>
+        {% endif %}
+      </form>
+      <div class="event-list">
+        {% for wiki in wikis %}
+        <div class="event">
+          <h4>
+            <a href="/~{{user.username}}/{{wiki.name}}">
+              ~{{user.username}}/{{wiki.name}}
+            </a>
+            {% if wiki.visibility != Visibility.PUBLIC %}
+            <small class="pull-right">
+              {{ wiki.visibility.value }}
+            </small>
+            {% endif %}
+          </h4>
+          <p>
+          </p>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {{ pagination() }}
+    </section>
+  </div>
+</div>
+{% endblock %}

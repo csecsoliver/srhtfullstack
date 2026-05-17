@@ -1,0 +1,10 @@
+#!/bin/sh -eu
+# Determine the build date in a "reproducible builds" compatible way using the
+# BSD compatible variant in the "Bash / POSIX shell" section of
+# https://reproducible-builds.org/docs/source-date-epoch/
+
+DATE_FMT="+%Y-%m-%d"
+SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date +%s)}"
+date -u -d "@$SOURCE_DATE_EPOCH" "$DATE_FMT" 2>/dev/null || \
+	date -u -r "$SOURCE_DATE_EPOCH" "$DATE_FMT" 2>/dev/null || \
+	date -u "$DATE_FMT"

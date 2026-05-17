@@ -1,0 +1,17 @@
+mutation CreatePaste($files: [Upload!]!, $visibility: Visibility!) {
+  create(files: $files, visibility: $visibility) {
+    id
+  }
+}
+
+mutation UpdatePaste($id: String!, $visibility: Visibility!) {
+  update(id: $id, visibility: $visibility) {
+    id
+  }
+}
+
+mutation DeletePaste($id: String!) {
+  delete(id: $id) {
+    id
+  }
+}

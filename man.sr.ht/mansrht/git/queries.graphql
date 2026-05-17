@@ -1,0 +1,114 @@
+query GetRepos($cursor: Cursor) {
+  me {
+    repositories(cursor: $cursor) {
+      cursor
+      results {
+        ... repoDetails
+      }
+    }
+  }
+}
+
+query GetRepo($name: String!) {
+  me {
+    repository(name: $name) {
+      ... repoDetails
+    }
+  }
+}
+
+query GetRepoAccess($owner: String!, $repo: String!) {
+  user(username: $owner) {
+    repository(name: $repo) {
+      access
+    }
+  }
+}
+
+query GetReferences($name: String!, $cursor: Cursor) {
+  me {
+    repository(name: $name) {
+      ... repoDetails
+
+      references(cursor: $cursor) {
+        cursor
+        results {
+          name
+        }
+      }
+    }
+  }
+}
+
+query GetRootTree($name: String!, $ref: String!) {
+  me {
+    repository(name: $name) {
+      ... repoDetails
+
+      reference(name: $ref) {
+        commit: follow {
+          ... on Commit { ... commitDetails }
+        }
+      }
+    }
+  }
+}
+
+query GetTree($name: String!, $ref: String!, $branch: String!, $path: String!) {
+  me {
+    repository(name: $name) {
+      ... repoDetails
+
+      path(revspec: $branch, path: $path) {
+        name
+        object {
+          id
+          type
+
+          ... on BinaryBlob {
+            content
+          }
+          ... on TextBlob {
+            text
+          }
+        }
+      }
+
+      reference(name: $ref) {
+        commit: follow {
+          ... on Commit { ... commitDetails }
+        }
+      }
+    }
+  }
+}
+
+mutation CreateRepo($name: String!, $visibility: Visibility!) {
+  repository: createRepository(name: $name, visibility: $visibility) {
+    id
+    name
+  }
+}
+
+mutation DeleteRepo($id: Int!) {
+  deleteRepository(id: $id) { id }
+}
+
+fragment commitDetails on Commit {
+  id
+  message
+  author {
+    name
+    email
+    time
+  }
+}
+
+fragment repoDetails on Repository {
+  id
+  name
+  owner {
+    __typename
+    canonicalName
+  }
+}

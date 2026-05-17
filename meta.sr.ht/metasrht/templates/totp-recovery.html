@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>TOTP challenge - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8">
+    <h3>
+      TOTP recovery
+    </h3>
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-8">
+    {% if supported %}
+    <p>
+      Please enter one of your TOTP recovery codes to continue:
+    </p>
+    <form method="POST">
+      {{csrf_token()}}
+      <div class="form-group">
+        <label for="recovery-code">Recovery code</label>
+        <input
+           type="text"
+           name="recovery-code"
+           id="recovery-code"
+           class="form-control {{valid.cls("recovery-code")}}"
+           required
+           autocomplete="one-time-code"
+           autofocus />
+        {{valid.summary("recovery-code")}}
+      </div>
+      <p>Submitting this form will disable TOTP on your account.</p>
+      <button class="btn btn-primary" type="submit">
+        Continue {{icon('caret-right')}}
+      </button>
+    </form>
+    {% else %}
+    <div class="alert alert-danger">
+      Your TOTP was configured prior to the introduction of recovery codes.
+      Please
+      <a href="mailto:{{cfg('sr.ht', 'owner-email')}}">contact support</a>
+      to continue.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

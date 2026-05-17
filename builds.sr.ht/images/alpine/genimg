@@ -1,0 +1,178 @@
+#!/bin/sh -eux
+echo "$release" >/dev/null # fail on -u if release unset
+arch="${1:-x86_64}"
+linux="${linux:-linux-lts}"
+
+cleanup() {
+	# The order here is important if you don't want to hose your mounts
+	sync
+	umount -f /mnt/dev/pts 2>/dev/null || true
+	umount -f /mnt/dev/shm 2>/dev/null || true
+	umount -f /mnt/dev 2>/dev/null || true
+	umount -f /mnt/proc 2>/dev/null || true
+	umount -f /mnt/run 2>/dev/null || true
+	umount -f /mnt/sys 2>/dev/null || true
+	umount -f /mnt/boot 2>/dev/null || true
+	umount -f /mnt 2>/dev/null || true 
+	swapoff /dev/nbd0p2 || true
+	qemu-nbd --disconnect /dev/nbd0 || true
+}
+
+mkdir -p "$arch"
+
+qemu-img create -f qcow2 "$arch"/root.img.qcow2 24G
+modprobe nbd max_part=16
+qemu-nbd --connect=/dev/nbd0 "$arch"/root.img.qcow2
+for i in $(seq 1 5); do
+	sleep 0.$i
+	partprobe /dev/nbd0 && break
+done
+trap cleanup EXIT
+
+if [ "$arch" == "x86_64" ] || [ "$arch" == "i686" ]
+then
+	dd if=/usr/share/syslinux/mbr.bin of=/dev/nbd0 bs=1 count=440
+fi
+sfdisk --no-reread /dev/nbd0 <<EOF
+1M,100M,L,*
+,2048M,S
+,,L
+EOF
+mdev -s
+
+mkfs.ext4 /dev/nbd0p1
+mkswap /dev/nbd0p2
+mkfs.ext4 /dev/nbd0p3
+
+mount /dev/nbd0p3 /mnt
+mkdir /mnt/boot
+mount /dev/nbd0p1 /mnt/boot
+swapon /dev/nbd0p2
+
+extra=""
+case $release in
+	3.23)
+		extra="!usr-merge-nag"
+		;;
+	edge)
+		extra="!usr-merge-nag"
+		;;
+esac
+
+# TODO: Remove bash
+apk add -U \
+	-X http://dl-cdn.alpinelinux.org/alpine/$release/main/ \
+	-X http://dl-cdn.alpinelinux.org/alpine/$release/community/ \
+	--allow-untrusted \
+	--arch="$arch" \
+	--root=/mnt \
+	--initdb \
+	acct alpine-base alpine-conf alpine-sdk linux-firmware-none $linux \
+	git mercurial openssh sudo syslinux tzdata gnupg haveged bash curl \
+	$extra
+
+mount --bind /dev /mnt/dev
+mount --bind /dev/pts /mnt/dev/pts
+mount --bind /dev/shm /mnt/dev/shm
+mount --bind /proc /mnt/proc
+mount --bind /run /mnt/run
+mount --bind /sys /mnt/sys
+
+run_root() {
+	chroot /mnt /usr/bin/env \
+		PATH=/sbin:/usr/sbin:/bin:/usr/bin \
+		/bin/sh -c "$*"
+}
+
+run_root setup-hostname -n build
+run_root setup-interfaces -i <<EOF
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+	hostname build
+	address 10.0.2.15
+	netmask 255.255.255.0
+	gateway 10.0.2.2
+EOF
+run_root setup-dns -d example.org 8.8.8.8 9.9.9.9 1.1.1.1
+if [ "$release" = "edge" ]
+then
+	run_root setup-timezone UTC
+	cat >/mnt/etc/apk/repositories <<EOF
+http://dl-cdn.alpinelinux.org/alpine/$release/main
+http://dl-cdn.alpinelinux.org/alpine/$release/community
+http://dl-cdn.alpinelinux.org/alpine/$release/testing
+EOF
+else
+	run_root setup-timezone -z UTC
+	cat >/mnt/etc/apk/repositories <<EOF
+http://dl-cdn.alpinelinux.org/alpine/$release/main
+http://dl-cdn.alpinelinux.org/alpine/$release/community
+EOF
+fi
+
+extlinux -i /mnt/boot
+
+run_root rc-update add ntpd default
+run_root rc-update add sshd default
+run_root rc-update add crond default
+run_root rc-update add haveged default
+for i in hwclock modules sysctl hostname bootmisc networking syslog swap
+do
+	run_root rc-update add $i boot
+done
+for i in mount-ro killprocs savecache
+do
+	run_root rc-update add $i shutdown
+done
+
+sed -e 's/#PermitEmptyPasswords no/PermitEmptyPasswords yes/' \
+	-i /mnt/etc/ssh/sshd_config
+
+run_root adduser -u 1000 -D -h /home/build -s /bin/sh build
+run_root adduser build wheel
+run_root adduser build kvm
+run_root adduser build abuild
+run_root passwd -u build
+
+printf '%s\n' "%wheel ALL=(ALL) NOPASSWD: ALL" >> /mnt/etc/sudoers
+rm -f /mnt/etc/motd
+
+cat >/mnt/boot/extlinux.conf <<EOF
+DEFAULT linux
+LABEL linux
+	LINUX vmlinuz-$(echo "$linux" | cut -d- -f2-)
+	INITRD initramfs-$(echo "$linux" | cut -d- -f2-)
+	APPEND root=/dev/vda3 rw modules=sd-mod,usb-storage,ext4 quiet rootfstype=ext4
+EOF
+
+cat >>/mnt/etc/fstab <<EOF
+/dev/vda1 /boot ext4 rw,relatime,data=ordered 0 0
+/dev/vda2 swap swap defaults 0 0
+/dev/vda3 / ext4 rw,relatime,data=ordered 0 0
+EOF
+
+mkdir -p /mnt/etc/docker
+cat >/mnt/etc/docker/daemon.json <<EOF
+{
+	"bip": "172.18.0.1/16"
+}
+EOF
+
+pkg_version() {
+	name=$(run_root apk list $1 | grep installed | cut -d' ' -f1)
+	echo ${name##$1-}
+}
+
+run_root apk add $linux=$(pkg_version $linux)
+
+cat >/mnt/home/build/.gitconfig <<EOF
+[user]
+  name = builds.sr.ht
+  email = builds@sr.ht
+EOF
+chown build:build /mnt/home/build/.gitconfig
+
+sync

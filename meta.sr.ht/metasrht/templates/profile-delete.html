@@ -1,0 +1,54 @@
+{% extends "meta.html" %}
+{% block title %}
+<title>Delete your account - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    <h3>Delete your {{cfg("sr.ht", "site-name")}} account</h3>
+    <form method="POST" action="{{url_for(".profile_delete_POST")}}">
+      {{csrf_token()}}
+      <p>
+        Before you delete your account, you may want to
+        <a href="https://sr.ht/~xenrox/hut">export your account data</a>. If
+        you choose to prevent future registrations with your username, no
+        future accounts (including yourself) will be able to sign up with that
+        username.
+      </p>
+      <div class="form-group form-check">
+        <input
+          type="checkbox"
+          class="form-check-input"
+          name="confirm"
+          id="confirm">
+        <label class="form-check-label" for="confirm">
+          I really want to permanently delete my account
+        </label>
+        {{valid.summary("confirm")}}
+      </div>
+      <div class="form-group form-check">
+        <input
+          type="checkbox"
+          class="form-check-input"
+          name="reserve-username"
+          id="reserve-username">
+        <label class="form-check-label" for="reserve-username">
+          Prevent future registrations with the name "{{current_user.username}}"
+        </label>
+      </div>
+      {{valid.summary()}}
+      <div class="alert alert-danger">
+        <strong>Notice</strong>: Clicking "confirm account deletion" will
+        <strong>permanently</strong> remove your account, your projects, and
+        all of your personal data on our services. This cannot be undone.
+      </div>
+      <button type="submit" class="btn btn-danger">
+        Confirm account deletion {{icon('caret-right')}}
+      </button>
+      <a href="{{url_for(".profile_GET")}}" class="btn btn-default">
+        Nevermind {{icon("caret-right")}}
+      </a>
+    </form>
+  </div>
+</div>
+{% endblock %}

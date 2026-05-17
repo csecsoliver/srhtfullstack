@@ -1,0 +1,57 @@
+{% extends "paste-base.html" %}
+{% block title %}
+<title>
+{% if len(paste.files) == 1 %}
+{{paste.files[0].filename or paste.sha[:7]}} &mdash; paste.sr.ht
+{% else -%}
+{{paste.sha[:7]}} &mdash; paste.sr.ht
+{%- endif %}
+</title>
+{% endblock %}
+{% block paste_body %}
+{% set ln = namespace(count=0) %}
+{% for file in paste.files %}
+<div class="header-extension" style="margin-bottom: 0;" id="{{file.filename}}">
+  <div class="container-fluid">
+    <span style="display: inline-block; width: 1rem">
+      <a class="filename" href="#{{file.filename}}">#</a>
+    </span>
+    <span>{{file.filename or ""}}</span>
+    <span class="text-muted" style="margin-left: 1rem">
+      <span title="{{"{0:0o}".format(33188)}}">
+        {{stat.filemode(33188)}}
+      </span>
+    </span>
+    <span class="text-muted" style="margin-left: 1rem">
+      <span title="{{ len(file.blob.contents) }} bytes">
+        {{humanize.naturalsize(len(file.blob.contents),
+          binary=True).replace("Byte", "byte")}}
+      </span>
+    </span>
+    <span class="text-muted" style="margin-left: 1rem">
+      <a href="{{ url_for(".blob_GET", sha=file.blob.sha) }}">
+        View raw
+      </a>
+    </span>
+  </div>
+</div>
+{% if file.filename and file.filename.endswith(".md") %}
+<div class="container markdown-content">
+  {{ file.blob.contents|render_markdown }}
+</div>
+{% else %}
+<div class="container-fluid other-content">
+  <div class="code-view">
+    <pre class="ruler"><span>{% for i in range(80) %} {% endfor %}</span></pre>
+    <pre class="lines">{% for line in file.blob.contents.split("\n") %}{% set ln.count = ln.count + 1 %}<a
+      href="#L{{ln.count}}"
+      id="L{{ln.count}}"
+      >{{loop.index}}</a>{% if not loop.last %}
+{% endif %}{% endfor %}</pre>
+    {{highlight_file(file.filename or "", file.blob.contents)}}
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+<script src="/static/linelight.js"></script>
+{% endblock %}

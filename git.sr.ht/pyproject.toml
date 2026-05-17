@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gitsrht"
+dynamic = ["version"]
+description = "git.sr.ht website"
+readme = "README.md"
+authors = [{name = "Drew DeVault", email = "sir@cmpwn.com"}]
+dependencies = [
+    "srht",
+    "pygit2",
+]
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+
+[project.urls]
+repository = "https://git.sr.ht/~sircmpwn/git.sr.ht"
+
+[tool.setuptools]
+# This defaults to true, but we explicitly specify what we want included in the
+# package via packages and tool.setuptools.package-data below.
+include-package-data = false
+packages = [
+    "gitsrht",
+    "gitsrht.blueprints",
+    "gitsrht.graphql",
+    "gitsrht.templates",
+    "gitsrht.types",
+]
+script-files = [
+    "git.sr.ht-periodic",
+]
+[tool.setuptools.package-data]
+"gitsrht" = ['default_query.graphql', 'schema.graphqls']
+"gitsrht.templates" = ['*.html']
+"gitsrht.static" = ['*']
+"gitsrht.static.icons" = ['*']
+
+[tool.setuptools_scm]
+
+[tool.ariadne-codegen]
+async_client = false
+schema_path = "api/graph/schema.graphqls"
+queries_path = "gitsrht/graphql/"
+target_package_path = "gitsrht"
+target_package_name = "graphql"
+plugins = ["srht.ariadne.AriadnePlugin"]
+
+[tool.ariadne-codegen.sourcehut]
+service_name = "git.sr.ht"
+
+[tool.ariadne-codegen.scalars.Time]
+type = "datetime.datetime"
+parse = "srht.graphql.gql_time"

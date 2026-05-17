@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>Your {{cfg("sr.ht", "site-name")}} account has been deleted</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8 offset-md-2" style="margin-top: 10rem">
+    <div class="alert alert-success">
+      Your {{cfg("sr.ht", "site-name")}} account is being deleted.
+      No further action is required on your part.
+    </div>
+    <p class="text-center">👋</p>
+  </div>
+</div>
+{% endblock %}

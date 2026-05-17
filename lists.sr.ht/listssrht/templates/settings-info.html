@@ -1,0 +1,111 @@
+{% extends "settings.html" %}
+{% block title %}
+<title>
+  {{ owner.canonical_name }}/{{ ml.name }} settings &mdash; {{ cfg("sr.ht", "site-name") }} lists
+</title>
+{% endblock %}
+{% block content %}
+<div class="container">
+  <form class="row" method="POST">
+    <div class="col-md-6">
+      {{csrf_token()}}
+      <div class="form-group">
+        <label for="name">
+          Name
+          <span class="text-muted">(you can't edit this)</p>
+        </label>
+        <input
+          type="text"
+          name="name"
+          id="name"
+          class="form-control"
+          value="{{ ml.name }}"
+          disabled />
+      </div>
+      <div class="form-group {{valid.cls("description")}}">
+        <label for="description">Description</label>
+        <textarea
+          name="description"
+          id="description"
+          class="form-control"
+          placeholder="Markdown supported"
+          rows="10"
+          aria-describedby="description-help"
+        >{{description or ml.description or ""}}</textarea>
+        {{ valid.summary("description") }}
+      </div>
+      {{ valid.summary() }}
+      <span class="pull-right">
+        <a
+          href="{{ url_for("archives.archive",
+            owner_name=ml.owner.canonical_name,
+            list_name=ml.name) }}"
+          class="btn btn-default"
+        >Cancel</a>
+        <button type="submit" class="btn btn-primary">
+          Save {{icon("caret-right")}}
+        </button>
+      </span>
+    </div>
+    <div class="col-md-6 d-flex flex-column">
+      <fieldset class="form-group">
+        <legend>Mailing List Visibility</legend>
+        <div class="form-check">
+          <label class="form-check-label">
+            <input
+              class="form-check-input"
+              type="radio"
+              name="visibility"
+              value="PUBLIC"
+              {% if ml.visibility == Visibility.PUBLIC %}
+              checked
+              {% endif %}
+              > Public
+            <small id="visibility-public-help" class="form-text text-muted">
+              Shown on your profile page
+            </small>
+          </label>
+        </div>
+        <div class="form-check">
+          <label
+              class="form-check-label"
+              title="Visible to anyone with the link, but not shown on your profile"
+            >
+            <input
+              class="form-check-input"
+              type="radio"
+              name="visibility"
+              value="UNLISTED"
+              {% if ml.visibility == Visibility.UNLISTED %}
+              checked
+              {% endif %}
+              > Unlisted
+            <small id="visibility-unlisted-help" class="form-text text-muted">
+              Visible to anyone who knows the URL, but not shown on your profile
+            </small>
+          </label>
+        </div>
+        <div class="form-check">
+          <label
+            class="form-check-label"
+            title="Only visible to you and your collaborators"
+          >
+            <input
+              class="form-check-input"
+              type="radio"
+              name="visibility"
+              value="PRIVATE"
+              {% if ml.visibility == Visibility.PRIVATE %}
+              checked
+              {% endif %}
+              > Private
+            <small id="visibility-unlisted-help" class="form-text text-muted">
+              Only visible to you and your collaborators
+            </small>
+          </label>
+        </div>
+      </fieldset>
+    </div>
+  </div>
+</div>
+{% endblock %}

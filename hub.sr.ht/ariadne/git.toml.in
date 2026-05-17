@@ -1,0 +1,15 @@
+[tool.ariadne-codegen]
+async_client = false
+client_name = "GitClient"
+schema_path = "@ASSETS@/git.sr.ht.graphqls"
+queries_path = "hubsrht/services/git/"
+target_package_path = "hubsrht/services/"
+target_package_name = "git"
+plugins = ["srht.ariadne.AriadnePlugin"]
+
+[tool.ariadne-codegen.sourcehut]
+service_name = "git.sr.ht"
+
+[tool.ariadne-codegen.scalars.Time]
+type = "datetime.datetime"
+parse = "srht.graphql.gql_time"

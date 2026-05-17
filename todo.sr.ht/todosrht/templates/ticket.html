@@ -1,0 +1,516 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>
+  {{ ticket.ref() }}: {{ ticket.title }}
+  &mdash;
+  {{ cfg("sr.ht", "site-name") }} todo
+</title>
+<!-- Ticket ID: {{ticket.id}} -->
+{% endblock %}
+{% block body %}
+<div class="container">
+  <h2 class="ticket-title">
+    <div>
+      <a href="{{ tracker.owner|user_url }}">{{ tracker.owner }}</a>/<wbr
+     ><a href="{{ tracker|tracker_url }}">{{ tracker.name }}</a><wbr
+     >#{{ ticket.scoped_id }}<span class="d-none d-md-inline">:</span>&nbsp;
+    </div>
+    <div id="title-field">
+      {{ticket.title}}
+    </div>
+  </h2>
+</div>
+<div class="header-tabbed">
+  {% if not tracker_sub %}
+  <form method="POST" action="{{url_for("ticket." +
+      ("disable_notifications" if ticket_sub else "enable_notifications"),
+      owner=tracker.owner.canonical_name,
+      name=tracker.name,
+      ticket_id=ticket.scoped_id)}}"
+    class="container"
+  >
+    {{csrf_token()}}
+  {% else %}
+  <div class="container">
+  {% endif %}
+    <ul class="nav nav-tabs">
+      <li class="nav-item">
+        <a href="{{ ticket|ticket_url }}"
+          class="nav-link active">view</a>
+      </li>
+      {% if TicketAccess.EDIT in access %}
+      <li class="nav-item">
+        <a href="{{ ticket|ticket_edit_url }}"
+          class="nav-link">edit</a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ ticket|ticket_delete_url }}"
+          class="nav-link">delete</a>
+      </li>
+      {% endif %}
+      <li class="flex-grow-1 d-none d-md-block"></li>
+      <li class="nav-item">
+        {% if current_user %}
+        <button
+          class="nav-link active"
+          {% if tracker_sub %}
+          title="you are subscribed to all activity on this tracker"
+          disabled
+          {% else %}
+          type="submit"
+          {% endif %}
+        >
+          {{icon("envelope-o")}}
+          {% if ticket_sub or tracker_sub %}
+          Disable notifications
+          {% else %}
+          Enable notifications
+          {% endif %}
+          {{icon("caret-right")}}
+        </button>
+        {% else %}
+        <a class="nav-link active" href="{{ ticket_subscribe }}">
+          {{icon("envelope-o")}}
+          Subscribe
+          {{icon("caret-right")}}
+        </a>
+        {% endif %}
+      </li>
+    </ul>
+  {% if not tracker_sub %}
+  </form>
+  {% else %}
+  </div>
+  {% endif %}
+</div>
+<div class="container">
+  <div class="row">
+    <div class="col-md-6">
+      {% if ticket.description %}
+      <div id="description-field">
+        {{ ticket|render_ticket_description }}
+      </div>
+      {% endif %}
+    </div>
+    <div class="col-md-6">
+      <dl class="row">
+        <dt class="col-md-3">Status</dt>
+        <dd class="col-md-9">
+          <strong id="status-field" class="text-success">
+            {{ ticket.status.name.upper() }}
+            {% if ticket.status == TicketStatus.RESOLVED %}
+            {{ ticket.resolution.name.upper() }}
+            {% endif %}
+          </strong>
+        </dd>
+        <dt class="col-md-3">Submitter</dt>
+        <dd class="col-md-9">
+          <a
+            id="submitter-field"
+            href="{{ ticket.submitter|participant_url }}"
+          >{{ ticket.submitter }}</a>
+          {% if ticket.authenticity == Authenticity.UNAUTHENTICATED %}
+          <span
+            class="text-danger"
+            title="This ticket was imported from an external source and its authenticity cannot be guaranteed."
+          >(unverified)</span>
+          {% elif ticket.authenticity == Authenticity.TAMPERED %}
+          <span
+            class="text-danger"
+            title="This ticket has been edited by a third party - its contents are not genuine."
+          >(edited)</span>
+          {% endif %}
+        </dd>
+        <dt class="col-md-3">Assigned to</dt>
+        <dd id="assignee-field" class="col-md-9">
+          {% for assignee in ticket.assigned_users %}
+          <div class="row">
+            <div class="col">
+              <a href="{{ assignee|user_url }}">{{ assignee }}</a>
+            </div>
+            <div class="col">
+              {% if TicketAccess.TRIAGE in access %}
+              <form
+                method="POST"
+                action="{{ ticket|ticket_unassign_url }}"
+                style="margin-bottom: .2rem"
+              >
+                {{ csrf_token() }}
+                <input
+                  type="hidden"
+                  name="username"
+                  value="~{{ assignee.username }}" />
+                <button
+                  type="submit"
+                  class="btn btn-link btn-block"
+                  style="text-align: right"
+                >(unassign)</button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+
+          {% if TicketAccess.TRIAGE in access %}
+          <details class="assign" {{"open" if not valid.ok else ""}}>
+            <summary>
+              Assign someone
+            </summary>
+            <form
+              method="POST"
+              action="{{ ticket|ticket_assign_url }}"
+              style="margin-bottom: 0"
+            >
+              {{ csrf_token() }}
+              <div class="form-group">
+                <input
+                  id="assignee-input"
+                  type="text"
+                  dir="auto"
+                  name="username"
+                  autocomplete="off"
+                  list="assignee-list"
+                  class="form-control {{valid.cls("username")}}"
+                  value="{{username}}" />
+                <datalist id="assignee-list">
+                  {% for u in recent_users %}
+                    <option value="~{{ u }}" />
+                  {% endfor %}
+                </datalist>
+                {{valid.summary("username")}}
+              </div>
+              <div class="pull-right">
+                <button
+                  name="myself"
+                  class="btn btn-default"
+                  {% if current_user in ticket.assigned_users %}
+                  title="you are already assigned to this ticket"
+                  disabled
+                  {% endif %}
+                >Assign myself {{ icon('caret-right') }}</button>
+                <button class="btn btn-primary">
+                  Assign {{ icon('caret-right') }}
+                </button>
+              </div>
+              <div class="clearfix"></div>
+            </form>
+          </details>
+          {% endif %}
+
+          {% if TicketAccess.TRIAGE not in access and not ticket.assigned_users %}
+          No-one
+          {% endif %}
+        </dd>
+        <dt class="col-md-3">Submitted</dt>
+        <dd id="submitted-field" class="col-md-9">
+        {{ ticket.created | date }}</dd>
+        <dt class="col-md-3">Updated</dt>
+        <dd id="updated-field" class="col-md-9">
+        {{ ticket.updated | date }}</dd>
+        <dt class="col-md-3">Labels</dt>
+        <dd id="labels-field" class="col-md-9">
+          {% for label in ticket.labels %}
+            {% if TicketAccess.TRIAGE in access %}
+              {{ label|label_badge(remove_from_ticket=ticket) }}
+            {% else %}
+              {{ label|label_badge }}
+            {% endif %}
+          {% else %}
+            {% if TicketAccess.TRIAGE in access
+               and tracker.labels|count == 0 %}
+                No labels defined.
+                {% if current_user and current_user.id == tracker.owner_id %}
+                <a href="{{url_for("tracker.tracker_labels_GET",
+                            owner=tracker.owner.canonical_name, name=tracker.name)}}"
+                >Create one {{icon('caret-right')}}</a>
+                {% endif %}
+            {% else %}
+                No labels applied.
+            {% endif %}
+          {% endfor %}
+        </dd>
+
+        {% if TicketAccess.TRIAGE in access
+           and tracker.labels|count > ticket.labels|count %}
+        <dd class="col-md-9 offset-md-3">
+          <form method="POST" action="{{ ticket|label_add_url }}">
+            {{csrf_token()}}
+            <select
+              id="label_id"
+              name="label_id"
+              class="form-control {{ valid.cls("label_id") }}"
+              required
+            >
+              <option value="">-- Pick one --</option>
+              {% for label in tracker.labels if label not in ticket.labels %}
+              <option
+                value="{{ label.id }}"
+                style="color: {{ label.text_color }};
+                    background-color: {{ label.color }}">
+                  {{ label.name }}
+                </option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-default">
+              Add label {{icon('caret-right')}}
+            </button>
+            {{ valid.summary('label_id') }}
+          </form>
+        </dd>
+        {% endif %}
+      </dl>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-12 event-list ticket-events">
+      {% for event in events %}
+      {% if event.event_type not in [
+          EventType.CREATED,
+          EventType.USER_MENTIONED,
+      ] %}
+      <div class="event">
+        <h4 id="event-{{event.id}}">
+          {% if event.event_type not in [
+            EventType.ASSIGNED_USER,
+            EventType.UNASSIGNED_USER,
+            EventType.TICKET_MENTIONED,
+          ] %}
+            <a
+              href="{{ event.participant|participant_url }}"
+            >{{ event.participant }}</a>
+            {% if EventType.COMMENT in event.event_type %}
+            {% if event.comment.authenticity == Authenticity.UNAUTHENTICATED %}
+            <span
+              class="text-danger"
+              title="This comment was imported from an external source and its authenticity cannot be guaranteed."
+            >(unverified)</span>
+            {% elif event.comment.authenticity == Authenticity.TAMPERED %}
+            <span
+              class="text-danger"
+              title="This comment has been edited by a third party."
+            >(edited)</span>
+            {% endif %}
+            {% endif %}
+          {% endif %}
+          {% if EventType.STATUS_CHANGE in event.event_type %}
+            <strong class="text-success">
+              {% if event.old_status == TicketStatus.RESOLVED %}
+              {{ event.old_resolution.name.upper() }}
+              {% else %}
+              {{ event.old_status.name.upper() }}
+              {% endif %}
+            </strong>
+            {{icon("arrow-right", cls="sm")}}
+            <strong class="text-success">
+              {% if event.new_status == TicketStatus.RESOLVED %}
+              {{ event.new_resolution.name.upper() }}
+              {% else %}
+              {{ event.new_status.name.upper() }}
+              {% endif %}
+            </strong>
+          {% endif %}
+          {% if EventType.LABEL_ADDED in event.event_type %}
+            added {{ event.label|label_badge(cls="small") }}
+          {% endif %}
+          {% if EventType.LABEL_REMOVED in event.event_type %}
+            removed {{ event.label|label_badge(cls="small") }}
+          {% endif %}
+          {% if EventType.ASSIGNED_USER in event.event_type %}
+            <a
+              href="{{event.by_participant|participant_url}}"
+            >{{event.by_participant}}</a>
+            assigned
+            <a
+              href="{{event.participant|participant_url}}"
+            >{{event.participant}}</a>
+          {% endif %}
+          {% if EventType.UNASSIGNED_USER in event.event_type %}
+            <a
+              href="{{event.by_participant|participant_url}}"
+            >{{event.by_participant}}</a>
+            unassigned
+            <a
+              href="{{event.participant|participant_url}}"
+            >{{event.participant}}</a>
+          {% endif %}
+          {% if EventType.TICKET_MENTIONED in event.event_type %}
+            <a
+              href="{{ event.by_participant|participant_url }}"
+            >{{ event.by_participant }}</a>
+            {% set relation = event.from_ticket %}
+            {% if relation.status == TicketStatus.RESOLVED and
+              relation.resolution == TicketResolution.DUPLICATE %}
+            closed duplicate ticket
+            {% else %}
+            referenced this from
+            {% endif %}
+            {% if relation.status == TicketStatus.RESOLVED %}
+            <s>
+            {% endif %}
+            <a
+              href="{{relation|ticket_url}}#event-{{event.id}}"
+              title="{{relation.title}}"
+            >
+              {{relation.ref(short=relation.tracker_id == ticket.tracker_id) -}}
+            </a>
+            {%- if relation.status == TicketStatus.RESOLVED -%}
+            </s>
+            {% endif %}
+          {% endif %}
+          <span class="pull-right">
+            <small>
+              <a href="#event-{{event.id}}">{{ event.created | date }}</a>
+              {%- if EventType.COMMENT in event.event_type and
+                  event.comment.superceedes -%}
+                <span title="This comment has been edited">*</span>
+              {% endif %}
+              {% if EventType.COMMENT in event.event_type
+                and (TicketAccess.TRIAGE in access
+                  or event.comment.submitter.user == current_user) %}
+              · <a href="{{url_for("ticket.ticket_comment_edit_GET",
+                  owner=tracker.owner.canonical_name, name=tracker.name,
+                  ticket_id=ticket.scoped_id,
+                  comment_id=event.comment.id, _anchor="edit")}}">edit</a>
+              {% endif %}
+            </small>
+          </span>
+        </h4>
+        {% if EventType.COMMENT in event.event_type %}
+        <blockquote>
+          {% set comment = event.comment %}
+          {{ comment | render_comment }}
+        </blockquote>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% endfor %}
+
+      {% if rendered_preview %}
+      <div class="event preview" id="comment-preview">
+        <span class="preview-tag">Comment preview</span>
+        <a href="{{ current_user|user_url }}">{{ current_user }}</a>
+        <blockquote>
+          {{ rendered_preview }}
+        </blockquote>
+      </div>
+      {% endif %}
+
+      {% if TicketAccess.COMMENT in access %}
+      {% if current_user %}
+      <form
+        {% if any(ticket.comments) %}
+        style="margin-top: 1rem"
+        {% endif %}
+        method="POST"
+        action="{{
+          url_for(".ticket_comment_POST",
+            owner=tracker.owner.canonical_name,
+            name=tracker.name,
+            ticket_id=ticket.scoped_id
+          )
+      }}#comment-preview">
+        {{csrf_token()}}
+        <div class="form-group" style="margin-bottom: 0.25rem">
+          <textarea
+            dir="auto"
+            class="form-control {{ valid.cls("comment") }}"
+            id="comment"
+            name="comment"
+            placeholder="Markdown supported"
+            maxlength="16384"
+            rows="5">{{ comment or "" }}</textarea>
+          {{valid.summary("comment")}}
+        </div>
+        <button
+          id="comment-submit"
+          type="submit"
+          class="btn btn-primary"
+        >
+          Comment {{icon("caret-right")}}
+        </button>
+        <button
+          type="submit"
+          name="preview"
+          value="true"
+          class="btn btn-default pull-right"
+        >Preview {{icon("caret-right")}}</button>
+        {% if TicketAccess.TRIAGE in access %}
+        {% if ticket.status != TicketStatus.RESOLVED %}
+        <button
+          type="submit"
+          class="btn btn-success"
+          name="resolve"
+          value="resolve"
+        >
+          Resolve {{icon("check")}}
+        </button>
+        <select class="form-control" name="resolution">
+          {% for r in TicketResolution %}
+          {% if r != TicketResolution.UNRESOLVED %}
+          <option
+            value="{{ r.value }}"
+            {% if r == TicketResolution.CLOSED %}selected{% endif %}
+          >{{ r.name }}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+        {% else %}
+        <button
+          type="submit"
+          class="btn btn-info"
+          name="reopen"
+          value="reopen"
+        >
+          Re-open {{icon("caret-right")}}
+        </button>
+        {% endif %}
+        {% endif %}
+      </form>
+      {% elif cfg("todo.sr.ht::mail", "posting-domain") %}
+      <a
+        class="btn btn-primary"
+        href="{{get_origin("meta.sr.ht", external=True)}}/register"
+      >Register here {{icon('caret-right')}}</a>
+      or
+      <a href="{{login_url}}">
+        Log in {{icon('caret-right')}}
+      </a>
+      to comment, or
+      <a href="{{reply_to}}">comment via email</a>.
+      {% endif %}
+      {% else %}
+      {% if not ticket.comments %}
+      <p>It's a bit quiet in here.</p>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript">
+// @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPL-3.0-only
+{% include "autocomplete.js" %}
+
+(function() {
+  const input = document.getElementById("assignee-input");
+  const list = document.getElementById("assignee-list");
+  if (input && list) {
+    autocomplete = new UserAutoComplete(input, list);
+    autocomplete.register();
+  }
+
+  // Submit comment when Ctrl+Enter is pressed
+  const comment = document.getElementById("comment");
+  if (comment) {
+    comment.addEventListener("keypress", function (e) {
+      if (e.ctrlKey && e.key === 'Enter') {
+        document.getElementById('comment-submit').click();
+      }
+    });
+  }
+})();
+// @license-end
+</script>
+{% endblock %}

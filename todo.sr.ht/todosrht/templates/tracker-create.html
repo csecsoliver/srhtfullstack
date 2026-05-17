@@ -1,0 +1,119 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>
+  Create tracker
+  &mdash;
+  {{ cfg("sr.ht", "site-name") }} todo
+</title>
+{% endblock %}
+{% block body %}
+<div class="container">
+  <form class="row" method="POST" action="/tracker/create">
+    {{csrf_token()}}
+    <div class="col-md-12">
+      <h3>Create new tracker</h3>
+    </div>
+    <div class="col-md-6">
+      <div class="form-group">
+        <label for="name">Name</label>
+        <input
+          type="text"
+          dir="auto"
+          name="name"
+          id="name"
+          class="form-control {{valid.cls("name")}}"
+          value="{{ name or "" }}"
+          aria-describedby="name-help"
+          required />
+        {{valid.summary("name")}}
+      </div>
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea
+          dir="auto"
+          name="description"
+          id="description"
+          class="form-control {{valid.cls("description")}}"
+          value="{{ description or "" }}"
+          rows="5"
+          aria-describedby="description-help">{{description or ""}}</textarea>
+        <p id="description-help" class="form-text text-muted">
+          Markdown supported
+        </p>
+        {{valid.summary("description")}}
+      </div>
+      {{valid.summary()}}
+      <button
+        type="submit"
+        class="btn btn-primary"
+        name="create"
+      >
+        Create tracker {{icon("caret-right")}}
+      </button>
+      <button
+        type="submit"
+        class="btn btn-default"
+        name="create-configure"
+      >
+        Create &amp; configure {{icon("caret-right")}}
+      </button>
+    </div>
+    <div class="col-md-6 d-flex flex-column">
+      <fieldset class="form-group">
+        <legend>Tracker Visibility</legend>
+        <div class="form-check">
+          <label class="form-check-label">
+            <input
+              class="form-check-input"
+              type="radio"
+              name="visibility"
+              value="PUBLIC"
+	      {% if not visibility or visibility == "PUBLIC" %}
+              checked
+	      {% endif %}> Public
+            <small id="visibility-public-help" class="form-text text-muted">
+              Shown on your profile page
+            </small>
+          </label>
+        </div>
+        <div class="form-check">
+          <label
+              class="form-check-label"
+              title="Visible to anyone with the link, but not shown on your profile"
+            >
+            <input
+              class="form-check-input"
+              type="radio"
+              name="visibility"
+              value="UNLISTED"
+	      {% if visibility == "UNLISTED" %}
+	      checked
+	      {% endif %}> Unlisted
+            <small id="visibility-unlisted-help" class="form-text text-muted">
+              Visible to anyone who knows the URL, but not shown on your profile
+            </small>
+          </label>
+        </div>
+        <div class="form-check">
+          <label
+            class="form-check-label"
+            title="Only visible to you and your collaborators"
+          >
+            <input
+              class="form-check-input"
+              type="radio"
+              name="visibility"
+              value="PRIVATE"
+	      {% if visibility == "PRIVATE" %}
+	      checked
+	      {% endif %}> Private
+            <small id="visibility-unlisted-help" class="form-text text-muted">
+              Only visible to you and your collaborators
+            </small>
+          </label>
+        </div>
+      </fieldset>
+    </div>
+  </form>
+</div>
+{% endblock %}

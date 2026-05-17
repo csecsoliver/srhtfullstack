@@ -1,0 +1,23 @@
+{% extends "meta.html" %}
+{% import "partials/invoice.html" as invoice %}
+
+{% block title %}
+<title>Invoices - {{cfg("sr.ht", "site-name")}} meta</title>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    <h3>Invoices</h3>
+    {% for i in invoices %}
+    {{ invoice.render(i, CURRENCY_SYMBOLS) }}
+    {% endfor %}
+    {% if cursor %}
+    <a
+      href="?next={{cursor}}"
+      class="btn btn-default pull-right"
+    >Next {{icon('caret-right')}}</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

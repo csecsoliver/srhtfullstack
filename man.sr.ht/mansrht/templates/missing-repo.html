@@ -1,0 +1,34 @@
+{% extends "man.html" %}
+{% block content %}
+<div class="header-extension">
+  <div class="container">
+    <a href="{{ url_for("public.user_index",
+       username=wiki.owner.username) }}"
+    >{{wiki.owner.canonical_name}}</a>/<wbr><a
+       href="{{ url_for("html.user_content",
+       owner_name=wiki.owner.username, wiki_name=wiki.name) }}"
+    >{{wiki.name}}</a>
+  </div>
+</div>
+<div class="container">
+  <div class="content">
+    <div class="alert alert-danger">
+      <strong>Error</strong>: The git repository backing this wiki has been
+      deleted.
+    </div>
+    <p>
+      You can either re-create
+      <a
+        href="{{git_repo_url(wiki)}}"
+      >{{current_user.canonical_name}}/{{wiki.repo_name}}</a>
+      and push the wiki content to the {{wiki.repo_ref}} branch, or
+      delete this wiki on the
+      <a href="{{url_for(
+         "manage.delete",
+          owner_name=current_user.canonical_name,
+          wiki_name=wiki.name,
+      )}}">settings page</a>.
+    </p>
+  </div>
+</div>
+{% endblock %}

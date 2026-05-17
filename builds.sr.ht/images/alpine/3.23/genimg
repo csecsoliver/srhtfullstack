@@ -1,0 +1,3 @@
+#!/bin/sh -xeu
+export release=v3.23
+exec ../genimg

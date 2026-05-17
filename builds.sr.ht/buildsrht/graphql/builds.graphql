@@ -1,0 +1,30 @@
+mutation SubmitBuild(
+  $manifest: String!,
+  $note: String,
+  $visibility: Visibility,
+  $tags: [String!],
+) {
+  job: submit(
+    manifest: $manifest,
+    note: $note,
+    visibility: $visibility,
+    tags: $tags,
+  ) {
+    id
+  }
+}
+
+mutation UpdateJob(
+  $jobId: Int!,
+  $visibility: Visibility!,
+  $tags: [String!],
+) {
+  update(jobId: $jobId, visibility: $visibility, tags: $tags) {
+    id
+    owner {
+      ... on User {
+        username
+      }
+    }
+  }
+}

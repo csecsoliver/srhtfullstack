@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>Reset your {{cfg("sr.ht", "site-name")}} password</title>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <h3>
+      Reset password
+    </h3>
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    {% if invalid_token %}
+    <div class="alert">
+      Your password reset link is expired or invalid.
+      <a href="{{url_for("auth.forgot_GET")}}">Please request a new one</a>.
+    </div>
+    {% else %}
+    <form method="POST">
+      {{csrf_token()}}
+      <div class="form-group">
+        <label for="password">New password</label>
+        <input
+           type="password"
+           name="password"
+           id="password"
+           required
+           autocomplete="new-password"
+           class="form-control {{valid.cls("password")}}" />
+        {{valid.summary("password")}}
+      </div>
+      {{valid.summary()}}
+      <button class="btn btn-primary pull-right" type="submit">
+        Reset password {{icon('caret-right')}}
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

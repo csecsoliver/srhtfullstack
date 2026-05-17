@@ -1,0 +1,49 @@
+#!/bin/sh
+poweroff_cmd="sudo systemctl poweroff"
+default_arch=x86_64
+
+boot() {
+	if [ "$arch" != "x86_64" ]
+	then
+		echo "Unsupported architecture $arch" >&2
+		exit 1
+	fi
+	_boot $(cpu_opts x86_64)
+}
+
+install() {
+	port=$1
+	shift 1
+	guest_ssh -p $port build@localhost sudo dnf -y install "$@"
+}
+
+add_repository() {
+	port=$1
+	name=$2
+	url=$3
+	guest_ssh -p $port build@localhost sudo dnf config-manager \
+		addrepo --from-repofile="$url"
+	guest_ssh -p $port build@localhost sudo dnf config-manager \
+		setopt "$name.enabled"=1
+	guest_ssh -p $port build@localhost sudo dnf makecache
+}
+
+sanity_check() {
+	echo "Booting..."
+	cmd_boot x86_64 8022 qemu &
+	trap 'cmd_cleanup 8022' EXIT
+	_wait_boot 8022
+	echo "Testing sudo..."
+	guest_ssh -p 8022 build@localhost sudo ls -a
+	echo "Testing networking..."
+	guest_ssh -p 8022 build@localhost curl https://builds.sr.ht
+	echo "Testing dnf..."
+	guest_ssh -p 8022 build@localhost sudo dnf -y upgrade
+	guest_ssh -p 8022 build@localhost sudo dnf -y install htop
+	echo "Testing git..."
+	guest_ssh -p 8022 build@localhost git --version
+	echo "Testing mercurial..."
+	guest_ssh -p 8022 build@localhost hg --version
+	echo "Everything works!"
+	guest_ssh -p 8022 build@localhost sudo systemctl poweroff || true
+}

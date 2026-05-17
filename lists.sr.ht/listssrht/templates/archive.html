@@ -1,0 +1,355 @@
+{% extends "list-full.html" %}
+{% block content %}
+<div class="container-fluid">
+  <div class="row" style="margin-bottom: 1rem">
+    {% if view == "archives" %}
+    <div class="col-lg-3 sidebar d-flex flex-column">
+      {% if ml.description %}
+      {{ml.description | md}}
+      {% endif %}
+
+      {% if current_user and not ml.mirror_id %}
+
+      {% if subscription %}
+      <form method="POST" action="{{url_for("archives.unsubscribe",
+            owner_name=owner.canonical_name, list_name=ml.name) }}">
+        {{csrf_token()}}
+        {% if ListAccess.post in access %}
+        <a
+          href="mailto:{{ post_address(ml) }}"
+          class="btn btn-primary btn-block"
+        >New post {{icon("caret-right")}}</a>
+        {% endif %}
+        <button class="btn btn-default btn-block">
+          Unsubscribe {{icon("caret-right")}}
+        </button>
+      </form>
+      {% else %}
+      <form method="POST" action="{{url_for("archives.subscribe",
+            owner_name=owner.canonical_name, list_name=ml.name) }}">
+        {{csrf_token()}}
+        {% if ListAccess.browse in access %}
+        <button class="btn btn-primary btn-block">
+          Subscribe {{icon("caret-right")}}
+        </button>
+        {% endif %}
+        {% if ListAccess.post in access %}
+        <a
+          href="mailto:{{ post_address(ml) }}"
+          class="
+            btn btn-block
+            {% if ListAccess.browse not in access %}
+            btn-primary
+            {% else %}
+            btn-default
+            {% endif %}
+          "
+        >New post {{icon("caret-right")}}</a>
+        {% endif %}
+      </form>
+      {% endif %}
+
+      {% else %}
+      {% set subscribe_address = post_address(ml, suffix="+subscribe") %}
+      {% set posting_address = post_address(ml) %}
+
+      {% if subscribe_address and ListAccess.browse in access %}
+      <a
+        {% if subscribe_address.startswith("mailto:") %}
+        href="{{subscribe_address}}"
+        {% else %}
+        href="mailto:{{subscribe_address}}"
+        {% endif %}
+        class="btn btn-primary btn-block"
+      >Subscribe {{icon("caret-right")}}</a>
+      {% endif %}
+      {% if ListAccess.post in access and posting_address %}
+      <a
+        {% if posting_address.startswith("mailto:") %}
+        href="{{posting_address}}"
+        {% else %}
+        href="mailto:{{posting_address}}"
+        {% endif %}
+        class="
+          btn btn-block
+          {% if ListAccess.browse not in access %}
+          btn-primary
+          {% else %}
+          btn-default
+          {% endif %}
+        "
+      >New post {{icon("caret-right")}}</a>
+      {% endif %}
+      {% endif %}
+
+      {% if ListAccess.post in access %}
+      <div class="alert alert-info">
+        Please review our
+        <a href="https://man.sr.ht/lists.sr.ht/etiquette.md">
+          mailing list etiquette</a>
+        guide and ensure your email client is correctly configured before
+        posting. Thanks!
+      </div>
+      {% endif %}
+      <form
+        class="mt-auto d-none d-lg-block"
+        method="POST"
+        action="{{url_for("archives.export_archive",
+          owner_name=owner.canonical_name, list_name=ml.name)}}"
+      >
+        {{csrf_token()}}
+        <h4>Download mailing list archive</h4>
+        <button
+          type="submit"
+          name="days"
+          value="30"
+          class="btn btn-block btn-default"
+        >Last 30 days {{icon('caret-right')}}</button>
+        <button
+          type="submit"
+          name="days"
+          value="-1"
+          class="btn btn-block btn-default"
+        >Entire archive {{icon('caret-right')}}</button>
+        <small class="text-muted">
+          Mailing list archives are exported as an mbox file. Individual
+          threads can be exported from their respective pages.
+        </small>
+      </form>
+    </div>
+    <div class="col-lg-9">
+    {% else %}
+    <div class="col-lg-12">
+    {% endif %}
+      {% if ListAccess.browse in access %}
+      {% if any(threads) or search %}
+      <form>
+        <input
+          name="search"
+          type="text"
+          {% if view == "archives" %}
+          placeholder='Search...{{"     from:me" if current_user else ""}}     is:patch     In-Reply-To:<12345@example.org>     "PATCH my-project"'
+          {% elif view == "patches" %}
+          placeholder='Search...     status:approved    prefix:my-project{{"    from:me" if current_user else ""}}'
+          {% endif %}
+          class="form-control{% if search_error %} is-invalid{% endif %}"
+          value="{{ search if search else "" }}" />
+        {% if search_error %}
+          <div class="invalid-feedback">{{ search_error }}</div>
+        {% endif %}
+      </form>
+      {% endif %}
+
+      {% if ml.import_in_progress %}
+      <div class="alert alert-primary">
+        An import operation is currently in progress.
+      </div>
+      {% endif %}
+
+      {% if any(threads) %}
+      {% if view == "archives" %}
+      <div class="event-list" style="margin-bottom: 0">
+      {% elif view == "patches" %}
+      <form
+        class="event-list"
+        method="POST"
+        action="{{url_for('patches.patchset_bulk_update',
+          owner_name=owner.canonical_name, list_name=ml.name)}}"
+        style="margin-bottom: 0"
+      >
+      {% endif %}
+        {% for message in threads %}
+        <div class="event archive-entry">
+          <h4>
+            {% if message.patchset_id %}
+            {% if view == "patches" %}
+            <label for="select-{{message.patchset_id}}"
+              class="status {{status_to_color[message.patchset.status]}}"
+            >
+              {% if ListAccess.moderate in access and view == "patches" %}
+              <input
+                type="checkbox"
+                class="patch-select"
+                name="select-{{message.patchset_id}}"
+                id="select-{{message.patchset_id}}"
+              ></input>
+              {% endif %}
+              {{message.patchset.status.value.replace("_", " ").upper()}}
+            </label>
+            {% endif %}
+            <a href="{{
+              url_for('patches.patchset',
+                owner_name=owner.canonical_name,
+                list_name=ml.name,
+                patchset_id=message.patchset_id)
+            }}">
+              {% if message.subject %}
+                {{ message.subject }}
+              {% else %}
+                <em>(no subject)</em>
+              {% endif %}
+            </a>
+            {% else %}
+            <a href="{{
+              url_for('archives.thread',
+                owner_name=owner.canonical_name,
+                list_name=ml.name,
+                message_id=message.message_id)
+            }}">
+              {% if message.subject %}
+                {{ message.subject }}
+              {% else %}
+                <em>(no subject)</em>
+              {% endif %}
+            </a>
+            {% endif %}
+          </h4>
+          <small class="text-muted pull-right">
+            <span>
+              {% set from_hdr = message.parsed()['From'] %}
+              {% set from = parseaddr(from_hdr) %}
+              {% if message.sender != None %}
+              <a href="/{{ message.sender.canonical_name }}">{{from[0]}}</a>
+              {% else %}
+              {{from[0]}}
+              {% endif %}
+            </span>
+            <span aria-label="Time of last update" title="Time of last update">
+              {{icon("clock")}} {{ message.updated | date }}
+            </span>
+            {% if message.nreplies > 0 %}
+            <span aria-label="Number of replies" title="Replies">
+              {{icon("reply")}}
+              {{message.nreplies}}
+            </span>
+            {% endif %}
+            {% if message.nparticipants > 1 %}
+            <span aria-label="Number of participants" title="Participants">
+              {{icon("user")}}
+              {{message.nparticipants}}
+            </span>
+            {% endif %}
+          </small>
+        </div>
+        {% endfor %}
+        {% if view == "patches" and ListAccess.moderate in access %}
+        {{csrf_token()}}
+        <input type="hidden" name="search" value="{{search if search else ""}}" />
+        <input type="hidden" name="page" value="{{page if page else ""}}" />
+        <div class="event">
+          <label for="select-all" class="checkbox">
+            <input
+              type="checkbox"
+              class="patch-select"
+              name="select-all"
+              id="select-all" />
+            {% if not search %}
+            Select all {{total_results}} patchsets
+            {% else %}
+            Select all {{total_results}} search results
+            {% endif %}
+          </label>
+        </div>
+        <div class="event col-md-4">
+          <div class="form-group">
+            <select
+              name="status"
+              id="status"
+              class="form-control"
+            >
+              {% for opt in PatchsetStatus %}
+              {% if opt.value != "unknown" %}
+              <option value="{{opt.value}}">
+                {{opt.value.replace("_", " ").upper()}}
+              </option>
+              {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          <button
+            type="submit"
+            class="btn btn-success pull-right"
+          >Bulk update {{icon('caret-right')}}</button>
+        </div>
+        {% endif %}
+      {% if view == "archives" %}
+      </div>
+      {% elif view == "patches" %}
+      </form>
+      {% endif %}
+
+      {% elif ml.mirror_id and not ml.mirror.configured %}
+
+      {% if ml.mirror.configure_attempts >= 2 %}
+      <div class="alert alert-danger">
+        There was a problem configuring this mirror. Please
+        <a href="mailto:{{cfg('sr.ht', 'owner-email')}}">contact support</a>.
+      </div>
+      {% else %}
+      <div class="alert alert-danger">
+        This mirror is still being configured with the remote mail server. If
+        this process doesn't complete within a few hours, please
+        <a href="mailto:{{cfg('sr.ht', 'owner-email')}}">contact support</a>.
+      </div>
+      {% endif %}
+      {% else %}
+      <p>
+        {% if search %}
+        Nothing found.
+        {% elif view == "patches" %}
+        No patches have been posted to this list yet.
+        {% else %}
+        No one has posted to this list yet.
+        {% endif %}
+      </p>
+      {% endif %}
+      {% else %}
+      <div class="alert alert-warning">
+        This list has restricted browsing, you cannot view the archives.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="row">
+    {% if view == "archives" %}
+    <div class="col-lg-3 order-md-2 order-lg-1">
+      <form
+        class="d-lg-none"
+        method="POST"
+        action="{{url_for("archives.export_archive",
+          owner_name=owner.canonical_name, list_name=ml.name)}}"
+      >
+        {{csrf_token()}}
+        <h4>Download mailing list archive</h4>
+        <button
+          type="submit"
+          name="days"
+          value="30"
+          class="btn btn-block btn-default"
+        >Last 30 days {{icon('caret-right')}}</button>
+        <button
+          type="submit"
+          name="days"
+          value="-1"
+          class="btn btn-block btn-default"
+        >Entire archive {{icon('caret-right')}}</button>
+        <small class="text-muted">
+          Mailing list archives are exported as an mbox file. Individual
+          threads can be exported from their respective pages.
+        </small>
+      </form>
+      <footer class="text-center">
+        <small class="text-muted" title="The resource ID for this mailing list, used to identify it in the GraphQL API.">
+          List RID: {{to_rid(ml.rid)}}
+        </small>
+      </footer>
+    </div>
+    <div class="col-lg-9 order-lg-2">
+    {% else %}
+    <div class="col-lg-12">
+    {% endif %}
+      {{ pagination() }}
+    </div>
+  </div>
+</div>
+{% endblock %}

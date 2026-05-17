@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>
+  labels
+  &mdash;
+  {{tracker.name}}
+  &mdash;
+  {{ cfg("sr.ht", "site-name") }} todo
+</title>
+{% endblock %}
+{% block body %}
+
+<div class="header-tabbed">
+  <div class="container">
+    <ul class="nav nav-tabs">
+      <h2>
+        <a href="{{ tracker.owner|user_url }}">{{ tracker.owner }}</a>/<wbr
+       >{{ tracker.name }}
+      </h2>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ tracker|tracker_url }}">
+          {{icon('caret-left')}} back
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link active"
+          href="{{ tracker|tracker_labels_url }}">labels</a>
+      </li>
+    </ul>
+  </div>
+</div>
+<div class="container">
+  <div class="row">
+    <div class="col-md-8 offset-md-2">
+      <h3>Edit label</h3>
+      <form method="POST">
+        {{csrf_token()}}
+        <div class="form-row">
+          <div class="col-auto">
+            <div class="form-group" style="width: 4rem">
+              <label for="color">Color</label>
+              <input
+                 type="color"
+                 class="form-control {{ valid.cls("color") }}"
+                 id="color"
+                 name="color"
+                 style="height: 2.2rem"
+                 value="{{ valid.kwargs.color or label.color }}"
+                 required />
+              {{valid.summary("color")}}
+            </div>
+          </div>
+          <div class="col">
+            <div class="form-group">
+              <label for="name">Name</label>
+              <input
+                 type="text"
+                 dir="auto"
+                 class="form-control {{ valid.cls("name") }}"
+                 maxlength="2048"
+                 id="name"
+                 name="name"
+                 value="{{ valid.kwargs.name or label.name }}"
+                 required />
+              {{valid.summary("name")}}
+            </div>
+          </div>
+        </div>
+        <div class="pull-right">
+          <a href="{{ url_for("tracker.tracker_labels_GET",
+              owner=tracker.owner, name=tracker.name) }}" class="btn btn-default">
+            Cancel
+          </a>
+          <button type="submit" class="btn btn-primary">
+            Save {{icon("caret-right")}}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

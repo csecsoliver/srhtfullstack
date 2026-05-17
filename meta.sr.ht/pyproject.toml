@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metasrht"
+dynamic = ["version"]
+description = "meta.sr.ht website"
+readme = "README.md"
+authors = [{name = "Drew DeVault", email = "sir@cmpwn.com"}]
+dependencies = [
+    "bcrypt",
+    "dnspython",
+    "httpx",
+    "prometheus_client",
+    "pydantic",
+    "qrcode",
+    "redis",
+    "srht",
+    "zxcvbn"
+]
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+
+[project.optional-dependencies]
+unix-pam-auth = ["python_pam"]
+
+[project.urls]
+repository = "https://git.sr.ht/~sircmpwn/meta.sr.ht"
+
+[tool.setuptools]
+# This defaults to true, but we explicitly specify what we want included in the
+# package via packages and tool.setuptools.package-data below.
+include-package-data = false
+packages = [
+    "metasrht",
+    "metasrht.auth",
+    "metasrht.blueprints",
+    "metasrht.blueprints.api",
+    "metasrht.graphql",
+    "metasrht.templates",
+    "metasrht.templates.partials",
+    "metasrht.types",
+]
+script-files = [
+    "meta.sr.ht-daily",
+    "meta.sr.ht-manageuser",
+]
+[tool.setuptools.package-data]
+"metasrht" = ['default_query.graphql', 'schema.graphqls']
+"metasrht.templates" = ['*.html']
+"metasrht.templates.partials" = ['*.html']
+
+[tool.setuptools_scm]
+
+[tool.ariadne-codegen]
+async_client = false
+schema_path = "api/graph/schema.graphqls"
+queries_path = "metasrht/graphql/"
+target_package_path = "metasrht"
+target_package_name = "graphql"
+plugins = ["srht.ariadne.AriadnePlugin"]
+
+[tool.ariadne-codegen.sourcehut]
+service_name = "meta.sr.ht"
+
+[tool.ariadne-codegen.scalars.Time]
+type = "datetime.datetime"
+parse = "srht.graphql.gql_time"
+
+[tool.ariadne-codegen.scalars.Country]
+type = "iso3166.Country"
+parse = "metasrht.countries.parse"
+serialize = "metasrht.countries.serialize"

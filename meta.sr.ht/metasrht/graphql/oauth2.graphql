@@ -1,0 +1,146 @@
+query OAuthDashboard {
+    personalAccessTokens { id, comment, issued, expires }
+    oauthClients { id, uuid, name, url }
+    oauthGrants {
+        id
+        issued
+        expires
+        tokenHash
+        client {
+            name
+            url
+            owner {
+                canonicalName
+            }
+        }
+    }
+}
+
+mutation IssuePAT($grants: String, $comment: String) {
+    token: issuePersonalAccessToken(grants: $grants, comment: $comment) {
+        secret
+        token { expires }
+    }
+}
+
+mutation RevokePAT($token_id: Int!) {
+  revokePersonalAccessToken(id: $token_id) { id }
+}
+
+mutation RevokeBearer($token_hash: String!) {
+  revokeOAuthGrant(hash: $token_hash) { id }
+}
+
+mutation RegisterClient(
+  $client_name: String!,
+  $client_description: String,
+  $client_url: String,
+  $redirect_uri: String!,
+) {
+  registration: registerOAuthClient(
+    redirectUri: $redirect_uri,
+    clientName: $client_name,
+    clientDescription: $client_description,
+    clientUrl: $client_url,
+  ) { ...clientRegistration }
+}
+
+query GetOAuthClient($uuid: String!) {
+  client: oauthClientByUUID(uuid: $uuid) {
+    description
+    name
+    redirectUrl
+    url
+    uuid
+
+    owner {
+        canonicalName
+        ... on User {
+            username
+        }
+    }
+  }
+}
+
+mutation ReregisterOAuthClient(
+  $uuid: String!,
+  $client_name: String!,
+  $client_description: String,
+  $client_url: String,
+  $redirect_uri: String!,
+) {
+  revocation: revokeOAuthClient(uuid: $uuid) { id }
+
+  registration: registerOAuthClient(
+    redirectUri: $redirect_uri,
+    clientName: $client_name,
+    clientDescription: $client_description,
+    clientUrl: $client_url
+  ) { ...clientRegistration }
+}
+
+mutation UnregisterOAuthClient($uuid: String!) {
+  revokeOAuthClient(uuid: $uuid) { id }
+}
+
+mutation IssueAuthCode($client_uuid: String!, $grants: String!) {
+    code: issueAuthorizationCode(clientUUID: $client_uuid, grants: $grants)
+}
+
+mutation IssueBearerToken(
+  $authorization: String!,
+  $client_uuid: String!,
+  $client_secret: String!,
+  $redirect_uri: String,
+) {
+  grant: issueOAuthGrant(
+    authorization: $authorization,
+    clientUUID: $client_uuid,
+    clientSecret: $client_secret,
+    redirectUri: $redirect_uri,
+  ) { ...oauthGrant }
+}
+
+mutation RefreshGrant(
+  $refresh_token: String!,
+  $client_uuid: String!,
+  $client_secret: String!,
+  $scope: String,
+) {
+  grant: refreshOAuthGrant(
+    refreshToken: $refresh_token,
+    clientUUID: $client_uuid,
+    clientSecret: $client_secret,
+    grants: $scope,
+  ) { ...oauthGrant }
+}
+
+query GetIntrospection {
+  user: me {
+    username
+  }
+  grant: myOauthGrant {
+    client {
+      uuid
+    }
+    issued
+    expires
+    grants
+  }
+}
+
+fragment clientRegistration on OAuthClientRegistration {
+  client {
+    uuid
+  }
+  secret
+}
+
+fragment oauthGrant on OAuthGrantRegistration {
+  grant {
+    expires
+  }
+  grants
+  secret
+  refreshToken
+}

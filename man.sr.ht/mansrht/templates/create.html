@@ -1,0 +1,75 @@
+{% extends "man.html" %}
+{% block title %}
+<title>create wiki - {{domain}}</title>
+{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="row">
+    <section class="col-md-6">
+      {% if is_root %}
+      <h3 id="create">Create root wiki</h3>
+      {% else %}
+      <h3 id="create">Create new wiki</h3>
+      {% endif%}
+      <form method="POST" action="/wiki/create">
+        {{csrf_token()}}
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input
+            type="text"
+            name="name"
+            id="name"
+            class="form-control {{valid.cls("name")}}"
+            value="{{ repo_name or "" }}" />
+          {{valid.summary("name")}}
+        </div>
+        {% if not is_root %}
+        <fieldset class="form-group">
+          <legend>Visibility</legend>
+          <div class="form-check form-check-inline">
+            <label
+              class="form-check-label"
+              title="Publically visible and listed on your profile"
+            >
+              <input
+                class="form-check-input"
+                type="radio"
+                name="visibility"
+                value="PUBLIC"
+                checked> Public
+            </label>
+          </div>
+          <div class="form-check form-check-inline">
+            <label
+                class="form-check-label"
+                title="Visible to anyone with the link, but not shown on your profile"
+              >
+              <input
+                class="form-check-input"
+                type="radio"
+                name="visibility"
+                value="UNLISTED"> Unlisted
+            </label>
+          </div>
+          <div class="form-check form-check-inline">
+            <label
+              class="form-check-label"
+              title="Only visible to you and your collaborators"
+            >
+              <input
+                class="form-check-input"
+                type="radio"
+                name="visibility"
+                value="PRIVATE"> Private
+            </label>
+          </div>
+        </fieldset>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">
+          Select repo {{icon("caret-right")}}
+        </button>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

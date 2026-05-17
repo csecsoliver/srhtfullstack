@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row">
+  <div class="col-md-4" style="margin-bottom: 1rem">
+    {% if user == current_user %}
+    <p>
+      Welcome back, {{ current_user.username }}! This is the
+      {{cfg("sr.ht", "site-name")}} paste hosting service. Documentation
+      for its use is
+      <a href="https://man.sr.ht/paste.sr.ht">available here</a>.
+    </p>
+    <a href="/" class="btn btn-block btn-default">
+      New paste {{icon('caret-right')}}
+    </a>
+   {% else %}
+    <h2>
+      ~{{ user.username }}
+    </h2>
+    {% if user.location %}
+    <p>{{user.location}}</p>
+    {% endif %}
+    {% if user.url %}
+    <p>
+      <a
+        href="{{user.url}}"
+        target="_blank"
+        rel="me noopener noreferrer nofollow"
+      >{{user.url}}</a>
+    </p>
+    {% endif %}
+    {% if user.bio %}
+    {{user.bio | md}}
+    {% endif %}
+    {% endif %}
+  </div>
+  <div class="col-md-8 event-list">
+    <form style="margin-bottom: 0.5rem">
+      <label for="search" class="sr-only">Search pastes</label>
+      <input
+        name="search"
+        type="text"
+        placeholder="Search pastes...     filename     visibility:unlisted     sha:d54e32b"
+        class="form-control{% if search_error %} is-invalid{% endif %}"
+        value="{{ search if search else "" }}" />
+      {% if search_error %}
+        <div class="invalid-feedback">{{ search_error }}</div>
+      {% endif %}
+    </form>
+
+    {% for paste in pastes %}
+    <div class="event">
+      <h3>
+        <a href="{{ url_for(".paste_GET",
+          user=paste.user.username, sha=paste.sha) }}"
+        >
+          {% if len(paste.files) == 1 %}
+          {{paste.files[0].filename or paste.sha[:7]}}
+          {% else -%}
+          {{paste.sha[:7]}}
+          {%- endif %}
+        </a>
+        <div class="pull-right">
+          {% if paste.visibility != Visibility.PUBLIC %}
+          <small>
+            {{ paste.visibility.value.lower() }}
+          </small>
+          {% endif %}
+          <small>{{paste.created | date}}</small>
+        </div>
+      </h3>
+      <div class="file-list">
+        {% for file in paste.files %}
+        <div style="grid-column-start: 1">{{file.filename or ""}}</div>
+        <div class="text-muted">
+          <span title="{{"{0:0o}".format(33188)}}">
+            {{stat.filemode(33188)}}
+          </span>
+        </div>
+        <div class="text-muted">
+          <span title="{{ len(file.blob.contents) }} bytes">
+            {{humanize.naturalsize(len(file.blob.contents),
+              binary=True).replace("Byte", "byte")}}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    {{pagination()}}
+  </div>
+</div>
+{% endblock %}

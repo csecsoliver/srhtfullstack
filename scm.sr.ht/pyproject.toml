@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scmsrht"
+dynamic = ["version"]
+description = "scm.sr.ht library"
+authors = [{name = "Ludovic Chabant", email = "ludovic@chabant.com"}]
+dependencies = [
+      "srht",
+]
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+
+[project.urls]
+repository = "https://git.sr.ht/~sircmpwn/scm.sr.ht"
+
+[tool.setuptools]
+packages = [
+    "scmsrht",
+]
+
+[tool.setuptools_scm]

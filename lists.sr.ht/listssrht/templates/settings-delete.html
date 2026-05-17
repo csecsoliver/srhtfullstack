@@ -1,0 +1,35 @@
+{% extends "settings.html" %}
+{% block title %}
+<title>
+  {{ owner.canonical_name }}/{{ ml.name }} settings &mdash; {{ cfg("sr.ht", "site-name") }} lists
+</title>
+{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="row">
+    <form method="POST" class="col-md-12">
+      <p>
+        This will permanently delete your mailing list,
+        <strong>{{ owner.canonical_name }}/{{ ml.name }}</strong>.
+        This cannot be undone.
+      </p>
+      <div class="alert alert-info">
+        If you <a href="{{url_for("settings.import_export_GET",
+          owner_name=owner.canonical_name,
+          list_name=ml.name)}}">export your mail spool</a> before deleting this
+        mailing list, you may re-import it later or bring it to a different
+        service provider.
+      </div>
+      {{csrf_token()}}
+      <button type="submit" class="btn btn-danger">
+        Delete {{ml.name}} {{icon("caret-right")}}
+      </button>
+      <a
+        href="{{url_for("archives.archive",
+          owner_name=owner.canonical_name, list_name=ml.name)}}"
+        class="btn btn-default"
+      >Nevermind</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

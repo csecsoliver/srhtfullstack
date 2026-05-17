@@ -1,0 +1,40 @@
+#!/bin/sh
+poweroff_cmd="sudo poweroff"
+default_arch=amd64
+
+boot() {
+	if [ "$arch" != "amd64" ]
+	then
+		echo "Unsupported architecture $arch" >&2
+		exit 1
+	fi
+	qemu=qemu-system-x86_64
+	_boot $(cpu_opts x86_64)
+}
+
+install() {
+	port=$1
+	shift 1
+	guest_ssh -p $port build@localhost \
+		"sudo pkg update && sudo pkg upgrade -y && sudo pkg install -y $@"
+}
+
+sanity_check() {
+	echo "Booting..."
+	cmd_boot amd64 8022 qemu &
+	trap 'cmd_cleanup 8022' EXIT
+	_wait_boot 8022
+	sleep 20
+	echo "Testing sudo..."
+	guest_ssh -p 8022 build@localhost sudo ls -a
+	echo "Testing networking..."
+	guest_ssh -p 8022 build@localhost curl http://builds.sr.ht
+	echo "Testing pkg..."
+	guest_ssh -p 8022 build@localhost sudo pkg update
+	guest_ssh -p 8022 build@localhost sudo pkg upgrade -y
+	guest_ssh -p 8022 build@localhost sudo pkg install -y htop
+	echo "Testing git..."
+	guest_ssh -p 8022 build@localhost git --version
+	echo "Everything works!"
+	guest_ssh -p 8022 build@localhost sudo poweroff || true
+}

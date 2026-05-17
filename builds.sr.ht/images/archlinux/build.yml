@@ -1,0 +1,49 @@
+image: archlinux
+packages:
+  - arch-install-scripts
+  - qemu-base
+  - procps-ng
+  - rsync
+  - reflector
+  - syslinux
+  - pacman-contrib
+sources:
+  - https://git.sr.ht/~sircmpwn/builds.sr.ht
+environment:
+  arch: x86_64
+  slaves:
+    - deploy@fra01.builds.sr.ht
+    - deploy@fra02.builds.sr.ht
+    - deploy@rsync.builds.sr.ht
+secrets:
+  - fa00a8d3-7b63-42d5-8060-3bb31c3e3018
+triggers:
+  - action: email
+    condition: failure
+    to: ~sircmpwn/sr.ht-image-failures@lists.sr.ht
+    cc: Alex Kramer <lex@marcel.town>
+tasks:
+  - genimg: |
+      cd builds.sr.ht/images/archlinux
+      sudo sed -e 's/IgnorePkg.*/#IgnorePkg/' -i /etc/pacman.conf
+      sudo ./genimg
+  - sanity-check: |
+      cd builds.sr.ht
+      if [ -e /dev/kvm ]
+      then
+          MEMORY=1024 ./images/control archlinux sanity-check
+      else
+          echo "KVM unavailable, skipping sanity check"
+      fi
+  - deploy: |
+      cd builds.sr.ht/images/archlinux
+      echo "StrictHostKeyChecking=no" >> ~/.ssh/config
+      for server in "${slaves[@]}"
+      do
+        ssh $server mkdir -p /var/lib/images/archlinux/$arch
+        rsync -rzzP $arch/root.img.qcow2 \
+          ${server}:/var/lib/images/archlinux/root.img.qcow2-new
+        ssh $server \
+          mv /var/lib/images/archlinux/root.img.qcow2-new \
+             /var/lib/images/archlinux/$arch/root.img.qcow2
+      done

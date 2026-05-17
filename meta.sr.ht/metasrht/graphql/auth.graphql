@@ -1,0 +1,31 @@
+mutation RegisterAccount(
+  $email: String!,
+  $username: String!,
+  $password: String!,
+  $pgpKey: String,
+) {
+  registerAccount(
+    email: $email,
+    username: $username,
+    password: $password,
+    pgpKey: $pgpKey,
+  ) {
+    id
+  }
+}
+
+mutation ConfirmRegistration($token: String!) {
+  user: confirmRegistration(token: $token) {
+    id
+  }
+}
+
+mutation RequestPasswordReset($email: String!) {
+  resetPassword(email: $email)
+}
+
+mutation ConfirmPasswordChange($token: String!, $password: String!) {
+  user: confirmPasswordChange(token: $token, newPassword: $password) {
+    id
+  }
+}

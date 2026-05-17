@@ -1,0 +1,31 @@
+{% extends "paste-base.html" %}
+{% macro paste_name(paste) %}
+  {%- if len(paste.files) == 1 -%}
+  {{paste.files[0].filename or paste.sha[:7]}}
+  {%- else -%}
+  {{paste.sha[:7]}}
+  {%- endif -%}
+{% endmacro %}
+{% block paste_body %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      <p>
+        This will permanently delete your paste,
+	<strong>{{ paste.user.canonical_name -}}/{{ paste_name(paste) }}</strong>.
+        This cannot be undone.
+      </p>
+      <form method="POST">
+        {{csrf_token()}}
+        <button type="submit" class="btn btn-danger">
+          Delete {{ paste_name(paste) }} {{icon("caret-right")}}
+        </button>
+        <a
+          href="{{ url_for('.paste_GET', user=paste.user.username, sha=paste.sha) }}"
+          class="btn btn-default"
+        >Nevermind</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

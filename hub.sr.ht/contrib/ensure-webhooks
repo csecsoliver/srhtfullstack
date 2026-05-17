@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+#
+# This contrib script ensures that all webhooks are configured with the latest
+# version of the webhook payload.
+
+from flask import url_for
+from hubsrht.app import app
+from hubsrht.services.git import GitClient
+from hubsrht.services.hg import HgClient
+from hubsrht.services.lists import ListsClient
+from hubsrht.services.todo import TodoClient
+from hubsrht.blueprints.mailing_lists import LIST_WEBHOOK_VERSION
+from hubsrht.blueprints.sources import GIT_WEBHOOK_VERSION, HG_WEBHOOK_VERSION
+from hubsrht.blueprints.trackers import TODO_WEBHOOK_VERSION
+from hubsrht.webhooks import get_user_webhooks
+from srht.config import cfg, get_origin
+from srht.database import DbSession
+from srht.graphql import InternalAuth
+
+connection_string = cfg("hub.sr.ht", "connection-string")
+db = DbSession(connection_string)
+db.create()
+
+from hubsrht.types import User, MailingList, Tracker, UserWebhooks
+from hubsrht.types import SourceRepo, RepoType
+
+_listsrht = get_origin("lists.sr.ht", default=None)
+_todosrht = get_origin("todo.sr.ht", default=None)
+_gitsrht = get_origin("git.sr.ht", default=None)
+_hgsrht = get_origin("hg.sr.ht", default=None)
+
+print("Updating webhooks...")
+
+external_origin = get_origin("hub.sr.ht", external=True)
+if external_origin.startswith("https"):
+    app.config['PREFERRED_URL_SCHEME'] = 'https'
+
+external_origin = external_origin.removeprefix("http://")
+external_origin = external_origin.removeprefix("https://")
+app.config['SERVER_NAME'] = external_origin
+
+def up_to_date(have, want):
+    if have is None:
+        return False
+    return have >= want
+
+def update_resource_hook(res, url, target_version, delete, create):
+    if up_to_date(res.webhook_version, target_version):
+        return
+
+    print(f"Update {res} to version {target_version}")
+    if res.webhook_id is not None:
+        try:
+            delete()
+        except Exception as ex:
+            print(f"Error deleting obsolete webhook for {res}: {ex}")
+
+    try:
+        res.webhook_id = create()
+        res.webhook_version = target_version
+    except Exception as ex:
+        print(f"Error creating webhook for {res}: {ex}")
+
+    db.session.commit()
+
+with app.app_context():
+    for res in MailingList.query.all():
+        client = ListsClient(auth=InternalAuth(res.owner))
+        webhook_url = url_for("webhooks.project_mailing_list", list_id=res.id)
+        update_resource_hook(res, webhook_url, LIST_WEBHOOK_VERSION,
+            delete=lambda: client.delete_list_webhook(res.webhook_id),
+            create=lambda: client.create_list_webhook(
+                list_id=res.remote_id,
+                payload=ListsClient.event_webhook_query,
+                url=webhook_url).webhook.id)
+
+    for user in (User.query
+             .join(UserWebhooks)
+             .filter(UserWebhooks.lists_webhook_id is not None)):
+        uwh = get_user_webhooks(user)
+        if up_to_date(uwh.lists_webhook_version, LIST_WEBHOOK_VERSION):
+            continue
+        print(f"Configuring lists user webhook for {user}")
+        client = ListsClient(auth=InternalAuth(user))
+        webhook_url = url_for("webhooks.mailing_list_user", user_id=user.id)
+        if uwh.lists_webhook_id is not None:
+            client.delete_user_webhook(uwh.lists_webhook_id)
+        uwh.lists_webhook_id = client.create_user_webhook(
+                payload=ListsClient.event_webhook_query,
+                url=webhook_url).webhook.id
+        uwh.lists_webhook_version = LIST_WEBHOOK_VERSION
+        db.session.commit()
+
+    for res in SourceRepo.query.filter(SourceRepo.repo_type == RepoType.git):
+        client = GitClient(auth=InternalAuth(res.owner))
+        webhook_url = url_for("webhooks.git_repo", repo_id=res.id)
+        update_resource_hook(res, webhook_url, GIT_WEBHOOK_VERSION,
+            delete=lambda: client.delete_repo_webhook(res.webhook_id),
+            create=lambda: client.create_repo_webhook(
+                repo_id=res.remote_id,
+                payload=GitClient.event_webhook_query,
+                url=webhook_url).webhook.id)
+
+    for user in (User.query
+             .join(UserWebhooks)
+             .filter(UserWebhooks.git_webhook_id is not None)):
+        uwh = get_user_webhooks(user)
+        if up_to_date(uwh.git_webhook_version, GIT_WEBHOOK_VERSION):
+            continue
+        print(f"Configuring git user webhook for {user}")
+        client = GitClient(auth=InternalAuth(user))
+        webhook_url = url_for("webhooks.git_user", user_id=user.id)
+        if uwh.git_webhook_id is not None:
+            client.delete_user_webhook(uwh.git_webhook_id)
+        uwh.git_webhook_id = client.create_user_webhook(
+                payload=GitClient.event_webhook_query,
+                url=webhook_url).webhook.id
+        uwh.git_webhook_version = GIT_WEBHOOK_VERSION
+        db.session.commit()
+
+    for user in (User.query
+             .join(UserWebhooks)
+             .filter(UserWebhooks.hg_webhook_id is not None)):
+        uwh = get_user_webhooks(user)
+        if up_to_date(uwh.hg_webhook_version, HG_WEBHOOK_VERSION):
+            continue
+        print(f"Configuring hg user webhook for {user}")
+        client = HgClient(auth=InternalAuth(user))
+        webhook_url = url_for("webhooks.hg_user", user_id=user.id)
+        if uwh.hg_webhook_id is not None:
+            client.delete_user_webhook(uwh.hg_webhook_id)
+        uwh.hg_webhook_id = client.create_user_webhook(
+                payload=HgClient.event_webhook_query,
+                url=webhook_url).webhook.id
+        uwh.hg_webhook_version = HG_WEBHOOK_VERSION
+        db.session.commit()
+
+    for res in Tracker.query.all():
+        client = TodoClient(auth=InternalAuth(res.owner))
+        webhook_url = url_for("webhooks.todo_tracker", tracker_id=res.id)
+        update_resource_hook(res, webhook_url, TODO_WEBHOOK_VERSION,
+            delete=lambda: client.delete_tracker_webhook(res.webhook_id),
+            create=lambda: client.create_tracker_webhook(
+                tracker_id=res.remote_id,
+                payload=TodoClient.event_webhook_query,
+                url=webhook_url).webhook.id)
+
+    for user in (User.query
+             .join(UserWebhooks)
+             .filter(UserWebhooks.todo_webhook_id is not None)):
+        uwh = get_user_webhooks(user)
+        if up_to_date(uwh.todo_webhook_version, TODO_WEBHOOK_VERSION):
+            continue
+        print(f"Configuring todo user webhook for {user}")
+        client = TodoClient(auth=InternalAuth(user))
+        webhook_url = url_for("webhooks.todo_user", user_id=user.id)
+        if uwh.todo_webhook_id is not None:
+            client.delete_user_webhook(uwh.todo_webhook_id)
+        uwh.todo_webhook_id = client.create_user_webhook(
+                payload=TodoClient.event_webhook_query,
+                url=webhook_url).webhook.id
+        uwh.todo_webhook_version = TODO_WEBHOOK_VERSION
+        db.session.commit()
+
+print("Done.")

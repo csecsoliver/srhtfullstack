@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+import os
+import sys
+from getopt import getopt, GetoptError
+from getpass import getpass
+
+from srht.config import cfg
+from srht.database import DbSession
+from srht.oauth import UserType
+from srht.validation import Validation
+
+from metasrht import auth_validation
+from metasrht.auth import auth_method
+from metasrht.auth.base import get_user
+from metasrht.auth.builtin import hash_password
+from metasrht.types import User
+
+USER_TYPES = [x.value for x in UserType]
+
+
+def print_usage():
+    print(f"""Usage:
+    {sys.argv[0]} [-fmPps] [-e <EMAIL>] [-t <USER_TYPE>] <USERNAME>
+
+Options:
+    -e <EMAIL>      set user email
+    -f              perform action even if using different authentication method
+    -m              modify existing user
+    -P              clear password
+    -p              set password (default if creating a new user)
+    -s              read initial password from stdin (only effective with -p)
+    -t <USER_TYPE>  set user type to USER_TYPE; USER_TYPE must be one of these
+                    values: PENDING, USER, ADMIN""")
+
+
+def get_args():
+    try:
+        opts, args = getopt(sys.argv[1:], "e:fmPpst:")
+    except GetoptError as ex:
+        print(ex, file=sys.stderr)
+        print_usage()
+        sys.exit(1)
+
+    if len(args) == 0:
+        print("Username not specified", file=sys.stderr)
+        print_usage()
+        sys.exit(1)
+
+    if len(args) > 1:
+        print("Too many arguments", file=sys.stderr)
+        print_usage()
+        sys.exit(1)
+
+    force = ("-f", "") in opts
+    modify_existing = ("-m", "") in opts
+    clear_password = ("-P", "") in opts
+    set_password = ("-p", "") in opts
+    stdin = ("-s", "") in opts
+    email = [y for x, y in opts if x == "-e"]
+    email = email[0] if email else None
+    user_type = [y for x, y in opts if x == "-t"]
+    user_type = user_type[0] if user_type else None
+
+    username = args[0]
+
+    if clear_password and set_password:
+        sys.exit('Only one of -P, -p can be present at the same time')
+
+    if not modify_existing and not clear_password:
+        set_password = True
+
+    if not modify_existing and email is None:
+        sys.exit("Must specify -e when creating a new user!")
+
+    if user_type and user_type not in USER_TYPES:
+        sys.exit(f"-t must be one of {USER_TYPES}")
+
+    return force, modify_existing, clear_password, set_password, stdin, email, \
+           user_type, username
+
+
+def get_password(stdin):
+    if not stdin:
+        password1 = getpass("Enter password: ")
+        password2 = getpass("Repeat password: ")
+
+        if password1 != password2:
+            sys.exit("Repeated password does not match")
+
+        return password1
+    else:
+        return sys.stdin.readline().rstrip(os.linesep)
+
+
+def error_on_invalid(valid):
+    if not valid.ok:
+        for error in valid.errors:
+            print(error.message, file=sys.stderr)
+        sys.exit(1)
+
+
+def validate_user(username, email):
+    valid = Validation({})
+    auth_validation.validate_username(valid, username, check_blacklist=False)
+    auth_validation.validate_email(valid, email)
+    error_on_invalid(valid)
+
+
+def validate_password(password):
+    valid = Validation({})
+    auth_validation.validate_password(valid, password)
+    error_on_invalid(valid)
+
+
+if __name__ == '__main__':
+    force, modify_existing, clear_password, set_password, stdin, email, \
+        user_type, username = get_args()
+
+    if not force and auth_method != 'builtin':
+        sys.exit("Can't create accounts if not using builtin authentication!")
+
+    db = DbSession(cfg("meta.sr.ht", "connection-string"))
+    db.init()
+
+    if modify_existing:
+        user = get_user(username)
+        if user is None:
+            sys.exit(f"User {username} not found!")
+    else:
+        validate_user(username, email)
+        user = User(username)
+        db.session.add(user)
+
+    if set_password:
+        password = get_password(stdin)
+        validate_password(password)
+        user.password = hash_password(password)
+    elif clear_password:
+        user.password = ''
+
+    if email is not None:
+        user.email = email
+
+    if user_type is not None:
+        user.user_type = UserType(user_type)
+
+    db.session.commit()

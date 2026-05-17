@@ -1,0 +1,102 @@
+#!/bin/sh -eux
+
+echo "$release" >/dev/null # fail on -u if unset
+arch="${1:-amd64}"
+rel=${release%%.*}
+
+cleanup() {
+	umount disk/usr/share/keys/pkg || true
+	chflags -R noschg disk || true
+	rm -rf disk || true
+}
+trap cleanup EXIT
+
+rm -f disk.img
+mkdir disk
+mkdir -p disk/usr/local/etc/pkg/repos
+# pkg -R needs absolute path
+reposdir=$(pwd)/disk/usr/local/etc/pkg/repos
+
+cat >${reposdir}/FreeBSD.conf <<EOF
+FreeBSD: {
+	url: pkg+http://pkg.FreeBSD.org/\$\{ABI\}/latest
+	enabled: yes
+	mirror_type: srv
+	signature_type: fingerprint
+}
+FreeBSD-base: {
+	url: pkg+http://pkg.FreeBSD.org/\$\{ABI\}/base_latest
+	enabled: yes
+	mirror_type: srv
+	signature_type: fingerprint
+}
+EOF
+export ABI="FreeBSD:$rel:$arch"
+export IGNORE_OSVERSION=yes
+mkdir -p disk/usr/share/keys/pkg
+mount -t nullfs /usr/share/keys/pkg disk/usr/share/keys/pkg
+pkg -C /dev/null -R ${reposdir} -r disk update
+umount disk/usr/share/keys/pkg
+# XXX replace by group FreeBSD-base the day it is implemented :D
+pkg -C /dev/null -R ${reposdir} -r disk rquery -g "%n" "FreeBSD*"  | grep -vE "(lib32|dbg|kernel|src|tests)" | \
+	xargs pkg -C /dev/null -R ${reposdir} -r disk install -y
+if pkg -C /dev/null -R ${reposdir} -r disk install -y FreeBSD-kernel-generic-nodebug ; then
+	echo "kernel=kernel.GENERIC-NODEBUG" > disk/boot/loader.conf
+else
+	pkg -C /dev/null -R ${reposdir} -r disk install -y FreeBSD-kernel-generic
+fi
+
+echo "/dev/gpt/rootfs / ufs rw,noatime 1 1" >disk/etc/fstab
+touch disk/firstboot
+echo 'autoboot_delay="-1"' >>disk/boot/loader.conf
+
+cat >>disk/etc/rc.conf <<EOF
+ntpd_enable=YES
+sshd_enable=YES
+growfs_enable=YES
+hostname="build"
+ifconfig_DEFAULT="inet 10.0.2.15 netmask 255.255.255.0"
+defaultrouter="10.0.2.2"
+EOF
+cat > disk/etc/resolv.conf <<EOF
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+EOF
+tzsetup -s -C disk UTC
+
+cat >>disk/etc/ssh/sshd_config <<EOF
+PermitRootLogin yes
+PasswordAuthentication yes
+PermitEmptyPasswords yes
+UsePAM no
+EOF
+
+# TODO: remove bash
+pkg -r disk -R ${reposdir} install -y pkg git-lite mercurial bash sudo curl
+pkg -r disk -R ${reposdir} clean -ay
+
+pw -R disk groupadd sudo
+pw -R disk useradd -n build -u 1000 -s /usr/local/bin/bash -m -w none -G sudo
+echo "%sudo ALL=(ALL) NOPASSWD: ALL" >>disk/usr/local/etc/sudoers
+
+cat >disk/home/build/.gitconfig <<EOF
+[user]
+  name = builds.sr.ht
+  email = builds@sr.ht
+EOF
+chown 1000:1000 disk/home/build/.gitconfig
+
+makefs -s 5g -B little -o label=rootfs -o version=2 -o softupdates=1 disk.img disk
+mkdir -p "$arch"
+mkimg -s gpt \
+	-b disk/boot/pmbr \
+	-C 16G \
+	-p freebsd-boot:=disk/boot/gptboot \
+	-p freebsd-ufs/rootfs:=disk.img \
+	-f qcow2 \
+	-o "$arch"/root.img.qcow2
+
+cleanup
+trap : EXIT
+
+rm disk.img

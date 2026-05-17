@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hubsrht"
+dynamic = ["version"]
+description = "hub.sr.ht website"
+readme = "README.md"
+authors = [{name = "Drew DeVault", email = "sir@cmpwn.com"}]
+dependencies = [
+    "srht",
+]
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+
+[project.urls]
+repository = "https://git.sr.ht/~sircmpwn/hub.sr.ht"
+
+[tool.setuptools]
+# This defaults to true, but we explicitly specify what we want included in the
+# package via packages and tool.setuptools.package-data below.
+include-package-data = false
+packages = [
+    "hubsrht",
+    "hubsrht.blueprints",
+    "hubsrht.services",
+    "hubsrht.services.builds",
+    "hubsrht.services.git",
+    "hubsrht.services.hg",
+    "hubsrht.services.lists",
+    "hubsrht.services.todo",
+    "hubsrht.templates",
+    "hubsrht.types",
+]
+[tool.setuptools.package-data]
+"hubsrht" = ['default_query.graphql', 'schema.graphqls']
+"hubsrht.templates" = ['*.html']
+
+[tool.setuptools_scm]

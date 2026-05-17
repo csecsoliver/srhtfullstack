@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+{% block title %}
+<title>
+  Delete {{ ticket.ref() }}: {{ ticket.title }}
+  &mdash;
+  {{ cfg("sr.ht", "site-name") }} todo
+</title>
+{% endblock %}
+{% block body %}
+<div class="container">
+  <h2 class="ticket-title">
+    <div>
+      <a href="{{ tracker.owner|user_url }}">{{ tracker.owner }}</a>/<wbr
+     ><a href="{{ tracker|tracker_url }}">{{ tracker.name }}</a><wbr
+     >#{{ ticket.scoped_id }}<spanclass="d-none d-md-inline">:&nbsp;</span>
+    </div>
+    <div id="title-field">
+      {{ticket.title}}
+    </div>
+  </h2>
+</div>
+<div class="header-tabbed">
+  <div class="container">
+    <ul class="nav nav-tabs">
+      <li class="nav-item">
+        <a href="{{ ticket|ticket_url }}" class="nav-link">view</a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ ticket|ticket_edit_url }}"
+          class="nav-link">edit</a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ ticket|ticket_delete_url }}"
+          class="nav-link active">delete</a>
+      </li>
+    </ul>
+  </div>
+</div>
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      <p>
+        This will permanently delete this ticket and all of its comments. This
+        cannot be undone.
+      </p>
+      <form method="POST">
+        {{csrf_token()}}
+        <button type="submit" class="btn btn-danger">
+          Proceed and delete {{icon("caret-right")}}
+        </button>
+        <a
+          href="/{{ tracker.owner }}/{{ tracker.name }}"
+          class="btn btn-default"
+        >Nevermind</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

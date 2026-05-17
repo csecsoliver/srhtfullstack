@@ -1,0 +1,112 @@
+#!/bin/sh -eux
+
+echo "$release" >/dev/null # fail on -u if unset
+arch="${1:-amd64}"
+: ${repo:=FreeBSD}
+
+dist_base="https://download.freebsd.org/ftp/releases/$arch/$release"
+
+dist_files="kernel.txz base.txz base-dbg.txz"
+dist_dir="/usr/freebsd-dist/$arch/$release"
+
+mkdir -p "$dist_dir"
+for f in $dist_files
+do
+	fetch -m -o "$dist_dir/$f" "$dist_base/$f"
+done
+
+cleanup() {
+	sync || true
+	umount /mnt/dev || true
+	umount /mnt || true
+	mdconfig -du md0 || true
+}
+trap cleanup EXIT
+
+rm -f disk.img
+truncate -s 8G disk.img
+mdconfig -a -t vnode -f disk.img -u md0
+gpart create -s gpt /dev/md0
+gpart add -t freebsd-boot -l bootfs -b 40 -s 512K md0
+gpart bootcode -b /boot/pmbr -p /boot/gptboot -i 1 md0
+gpart add -t freebsd-ufs -l rootfs -b 1M md0
+newfs -U /dev/md0p2
+
+mount /dev/md0p2 /mnt
+
+mkdir -p /mnt/dev
+mount -t devfs devfs /mnt/dev
+
+for f in $dist_files
+do
+	tar -C /mnt -xJf "$dist_dir/$f"
+done
+
+echo "/dev/gpt/rootfs / ufs rw,noatime 1 1" >/mnt/etc/fstab
+touch /mnt/firstboot
+echo 'autoboot_delay="-1"' >>/mnt/boot/loader.conf
+
+cat >>/mnt/etc/rc.conf <<EOF
+ntpd_enable=YES
+sshd_enable=YES
+growfs_enable=YES
+hostname="build"
+ifconfig_DEFAULT="inet 10.0.2.15 netmask 255.255.255.0"
+defaultrouter="10.0.2.2"
+EOF
+echo "nameserver 8.8.8.8" >/mnt/etc/resolv.conf
+echo "nameserver 9.9.9.9" >>/mnt/etc/resolv.conf
+echo "nameserver 1.1.1.1" >>/mnt/etc/resolv.conf
+tzsetup -s -C /mnt UTC
+
+cat >>/mnt/etc/ssh/sshd_config <<EOF
+PermitRootLogin yes
+PasswordAuthentication yes
+PermitEmptyPasswords yes
+UsePAM no
+EOF
+
+mkdir -p /mnt/usr/local/etc/pkg/repos/
+cat >/mnt/usr/local/etc/pkg/repos/FreeBSD.conf <<EOF
+$repo: {
+	url: pkg+http://pkg.FreeBSD.org/\$\{ABI\}/latest
+	enabled: yes
+}
+EOF
+
+# freebsd-update is only supported for RELEASE
+if [ "${release%-RELEASE}" != "$release" ]
+then
+	env PAGER=true /usr/sbin/freebsd-update \
+		-b /mnt \
+		--currently-running "$release" \
+		--not-running-from-cron -F \
+		fetch install
+fi
+
+env ASSUME_ALWAYS_YES=YES pkg -c /mnt bootstrap -f
+# TODO: remove bash
+env ASSUME_ALWAYS_YES=YES pkg -c /mnt install git mercurial bash sudo curl
+
+git clone https://github.com/freebsd/freebsd-ports /mnt/usr/ports --depth=1 --single-branch
+
+pw -R /mnt groupadd sudo
+pw -R /mnt useradd -n build -u 1000 -s /usr/local/bin/bash -m -w none -G sudo
+echo "%sudo ALL=(ALL) NOPASSWD: ALL" >>/mnt/usr/local/etc/sudoers
+
+cat >/mnt/home/build/.gitconfig <<EOF
+[user]
+  name = builds.sr.ht
+  email = builds@sr.ht
+EOF
+chown build:build /mnt/home/build/.gitconfig
+
+cleanup
+trap : EXIT
+
+mkdir -p "$arch"
+qemu-img convert -f raw -O qcow2 disk.img "$arch"/root.img.qcow2
+rm disk.img
+
+# Filesystem will be enlarged by growfs(7) on next startup
+qemu-img resize "$arch"/root.img.qcow2 24G
