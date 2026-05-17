@@ -43,7 +43,7 @@ services:
     healthcheck:
       test: [ "CMD", "redict-cli", "--raw", "incr", "ping" ]
   postgres:
-    image: "postgres:alpine"
+    image: "postgres:16-alpine"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres

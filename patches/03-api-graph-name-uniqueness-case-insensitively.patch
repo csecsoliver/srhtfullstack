@@ -1,0 +1,31 @@
+From 6f239e23e7c8fdd1d641cc8272ae93b40c15058c Mon Sep 17 00:00:00 2001
+From: csoliver <source@olio.ovh>
+Date: Sat, 16 May 2026 15:07:48 +0000
+Subject: [PATCH lists.sr.ht] api/graph: name uniqueness case-insensitively
+
+---
+ api/graph/schema.resolvers.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/api/graph/schema.resolvers.go b/api/graph/schema.resolvers.go
+index 876d152..08224d3 100644
+--- a/api/graph/schema.resolvers.go
++++ b/api/graph/schema.resolvers.go
+@@ -727,6 +727,14 @@ func (r *mutationResolver) CreateMailingList(ctx context.Context, name string, d
+ 
+ 	var list model.MailingList
+ 	if err := database.WithTx(ctx, nil, func(tx *sql.Tx) error {
++		// check for lists matching case-insensitively
++		var temp uint8
++		checkDupNameRow := tx.QueryRowContext(ctx, `
++			SELECT 1 FROM list WHERE LOWER(name)=LOWER($1) AND owner_id=$2
++			`, name, auth.ForContext(ctx).UserID)
++		if err := checkDupNameRow.Scan(&temp); err == nil {
++			return fmt.Errorf("a mailing list with this name already exists")
++		}
+ 		row := tx.QueryRowContext(ctx, `
+ 			INSERT INTO list (
+ 				created, updated, name, description, visibility, owner_id
+-- 
+2.54.0
+

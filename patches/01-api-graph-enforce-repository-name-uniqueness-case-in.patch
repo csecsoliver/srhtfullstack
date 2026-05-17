@@ -1,0 +1,72 @@
+From e7a697c629d5bd0f96e6c71b46805482b821de71 Mon Sep 17 00:00:00 2001
+From: csoliver <source@olio.ovh>
+Date: Sat, 16 May 2026 15:01:36 +0000
+Subject: [PATCH git.sr.ht] api/graph: enforce repository name uniqueness
+ case-insensitively
+
+---
+ api/graph/schema.resolvers.go | 33 ++++++++++++++++++++++++++++++++-
+ 1 file changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/api/graph/schema.resolvers.go b/api/graph/schema.resolvers.go
+index d1c64ec..3ffebb0 100644
+--- a/api/graph/schema.resolvers.go
++++ b/api/graph/schema.resolvers.go
+@@ -255,6 +255,15 @@ func (r *mutationResolver) CreateRepository(ctx context.Context, name string, vi
+ 			cloneStatus = CloneInProgress
+ 		}
+ 
++		// check for repos matching case-insensitively on creation
++		var temp uint8
++		checkDupNameRow := tx.QueryRowContext(ctx, `
++			SELECT 1 FROM repository WHERE LOWER(name)=LOWER($1) AND owner_id=$2
++			`, name, user.UserID)
++		if err := checkDupNameRow.Scan(&temp); err == nil {
++			return valid.Error(ctx, "name", "A repository with this name already exists.")
++		}
++
+ 		row := tx.QueryRowContext(ctx, `
+ 			INSERT INTO repository (
+ 				created, updated, name, description, path, visibility, owner_id,
+@@ -463,8 +472,21 @@ func (r *mutationResolver) UpdateRepository(ctx context.Context, id int, input m
+ 				panic(fmt.Errorf("configuration error: [git.sr.ht]repos is unset"))
+ 			}
+ 
++			// check for existing repo case insensitively on rename
+ 			repoPath := path.Join(repoStore, "~"+user.Username, name)
+-			err := os.Rename(origPath, repoPath)
++			existing_repos, err := os.ReadDir(path.Join(repoStore, "~"+user.Username))
++			if err != nil {
++				validation.Error("%s", err.Error())
++			}
++			for _, element := range existing_repos {
++				if strings.ToLower(element.Name()) == strings.ToLower(name) {
++					validation.Error("A repository with this name already exists.").
++						WithField("name")
++					return
++				}
++			}
++
++			err = os.Rename(origPath, repoPath)
+ 			if errors.Is(err, os.ErrExist) {
+ 				validation.Error("A repository with this name already exists.").
+ 					WithField("name")
+@@ -797,6 +819,15 @@ func (r *mutationResolver) UploadArtifact(ctx context.Context, repoID int, revsp
+ 			partNum++
+ 		}
+ 
++		// Uncomment to also check for artifacts matching case-insensitively
++		/* var temp uint8
++		checkDupNameRow := tx.QueryRowContext(ctx, `
++			SELECT 1 FROM artifacts WHERE LOWER(filename)=LOWER($1) AND repo_id=$2
++			`, file.Filename, repo.ID)
++		if err := checkDupNameRow.Scan(&temp); err == nil {
++			return fmt.Errorf("an artifact by this name already exists for this repository (artifact names must be unique for within each repository)")
++		} */
++
+ 		checksum := "sha256:" + hex.EncodeToString(sha.Sum(nil))
+ 		row := tx.QueryRowContext(ctx, `
+ 			INSERT INTO artifacts (
+-- 
+2.54.0
+

@@ -1,0 +1,24 @@
+From: csoliver <source@olio.ovh>
+Subject: Case insensitivity in git, hub, lists and todo
+
+This patch series includes fixes in 4 of the sourcehut repositories.
+
+git.sr.ht:  
+Made the check when creating or renaming a repository case-insensitive.
+Included a commented out codeblock for checking artifacts, as I don't
+know if it should apply there.  
+
+hub.sr.ht:
+Made the check case insensitive here on projects too, and also added the validation
+of renames too, as it was missing.
+
+lists.sr.ht:
+Similar to git, but only on creation of mailing lists
+
+todo.sr.ht:
+Same as git, on creation and renaming of trackers and labels
+
+I haven't included checks about if the conflicting entry is itself, because the
+original doesn't have it either, but I think it might be worth doing sometime.
+
+Partially fixes: https://todo.sr.ht/~sircmpwn/sourcehut/98

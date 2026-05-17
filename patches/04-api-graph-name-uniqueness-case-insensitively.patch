@@ -1,0 +1,103 @@
+From 01124130cf67a7ce353424d5a9ce26c02330a4b1 Mon Sep 17 00:00:00 2001
+From: csoliver <source@olio.ovh>
+Date: Sat, 16 May 2026 18:24:24 +0000
+Subject: [PATCH todo.sr.ht] api/graph: name uniqueness case-insensitively
+
+---
+ api/graph/schema.resolvers.go | 46 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)
+
+diff --git a/api/graph/schema.resolvers.go b/api/graph/schema.resolvers.go
+index dd059be..d3b2645 100644
+--- a/api/graph/schema.resolvers.go
++++ b/api/graph/schema.resolvers.go
+@@ -183,6 +183,17 @@ func (r *mutationResolver) CreateTracker(ctx context.Context, name string, descr
+ 
+ 	var tracker model.Tracker
+ 	if err := database.WithTx(ctx, nil, func(tx *sql.Tx) error {
++
++		// check for trackers matching case-insensitively
++		var temp uint8
++		checkDupNameRow := tx.QueryRowContext(ctx, `
++			SELECT 1 FROM tracker WHERE LOWER(name)=LOWER($1) AND owner_id = $2
++ 			`, name, user.UserID)
++		if err := checkDupNameRow.Scan(&temp); err == nil {
++			return valid.Error(ctx, "name", "A tracker by this name already exists.")
++		}
++
++
+ 		row := tx.QueryRowContext(ctx, `
+ 			INSERT INTO tracker (
+ 				created, updated,
+@@ -271,6 +282,17 @@ func (r *mutationResolver) UpdateTracker(ctx context.Context, id int, input map[
+ 
+ 	var tracker model.Tracker
+ 	if err := database.WithTx(ctx, nil, func(tx *sql.Tx) error {
++
++		// check for trackers matching case-insensitively
++		var temp uint8
++		checkDupNameRow := tx.QueryRowContext(ctx, `
++			SELECT 1 FROM tracker WHERE LOWER(name)=LOWER($1) AND owner_id = $2
++ 			`, newName, auth.ForContext(ctx).UserID)
++		if err := checkDupNameRow.Scan(&temp); err == nil {
++			validation.Error("A tracker by this name already exists.").WithField("name")
++			return fmt.Errorf("A tracker by this name already exists.")
++		}
++
+ 		if newName != "" {
+ 			_, err := tx.ExecContext(ctx, `
+ 				INSERT INTO redirect (
+@@ -614,6 +636,16 @@ func (r *mutationResolver) CreateLabel(ctx context.Context, trackerID int, name
+ 	}
+ 
+ 	if err := database.WithTx(ctx, nil, func(tx *sql.Tx) error {
++
++		// check for labels matching case-insensitively
++		var temp uint8
++		checkDupNameRow := tx.QueryRowContext(ctx, `
++			SELECT 1 FROM label WHERE LOWER(name)=LOWER($1) AND tracker_id = $2
++			`, name, auth.ForContext(ctx).UserID)
++		if err := checkDupNameRow.Scan(&temp); err == nil {
++			return valid.Errorf(ctx, "name", "A label by this name already exists")
++		}
++
+ 		// TODO: Rename the columns for consistency
+ 		row := tx.QueryRowContext(ctx, `
+ 			INSERT INTO label (
+@@ -673,12 +705,14 @@ func (r *mutationResolver) UpdateLabel(ctx context.Context, id int, input map[st
+ 		}
+ 		query = query.Set(`color`, background)
+ 	})
++	var newName string
+ 	validation.OptionalString("name", func(name string) {
+ 		validation.Expect(len(name) != 0, "Name cannot be empty").
+ 			WithField("name")
+ 		if !validation.Ok() {
+ 			return
+ 		}
++		newName = name
+ 		query = query.Set(`name`, name)
+ 	})
+ 	if !validation.Ok() {
+@@ -688,6 +722,18 @@ func (r *mutationResolver) UpdateLabel(ctx context.Context, id int, input map[st
+ 	var label model.Label
+ 	userID := auth.ForContext(ctx).UserID
+ 	if err := database.WithTx(ctx, nil, func(tx *sql.Tx) error {
++		// check for labels matching case-insensitively
++		var temp uint8
++		checkDupNameRow := tx.QueryRowContext(ctx, `
++			SELECT 1 FROM label
++			WHERE LOWER(name)=LOWER($1)
++			AND tracker_id = (SELECT tracker_id FROM label WHERE id = $2)
++			`, newName, id)
++		if err := checkDupNameRow.Scan(&temp); err == nil {
++			return valid.Errorf(ctx, "name", "A label by this name already exists")
++		}
++
++
+ 		row := query.
+ 			From(`tracker tr`).
+ 			Where(`label.id = ? AND tracker_id = tr.id AND tr.owner_id = ?`, id, userID).
+-- 
+2.54.0
+

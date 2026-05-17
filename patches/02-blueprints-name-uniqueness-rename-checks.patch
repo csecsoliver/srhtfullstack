@@ -1,0 +1,47 @@
+From a225719c1bb97d1bd0c611b8103ac64c9f3eb485 Mon Sep 17 00:00:00 2001
+From: csoliver <source@olio.ovh>
+Date: Sat, 16 May 2026 15:05:02 +0000
+Subject: [PATCH hub.sr.ht] blueprints: name uniqueness, rename checks
+
+---
+ hubsrht/blueprints/projects.py | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/hubsrht/blueprints/projects.py b/hubsrht/blueprints/projects.py
+index edcd693..3bc0d8c 100644
+--- a/hubsrht/blueprints/projects.py
++++ b/hubsrht/blueprints/projects.py
+@@ -255,7 +255,7 @@ def create_POST():
+     valid.expect(not name or name not in [".git", ".hg"],
+             "Name must not be '.git' or '.hg'", field="name")
+     valid.expect(not name or Project.query
+-            .filter(Project.name == name)
++            .filter(Project.name.ilike(name))
+             .filter(Project.owner_id == current_user.id).count() == 0,
+             "Name must be unique among your projects", field="name")
+     valid.expect(not description or len(description) < 512,
+@@ -333,6 +333,21 @@ def settings_rename_POST(owner, project_name):
+ 
+     valid = Validation(request)
+     name = valid.require("name", friendly_name="Name")
++
++    valid.expect(not name or len(name) < 128,
++            "Name must be fewer than 128 characters", field="name")
++    valid.expect(not name or re.match(r'^[A-Za-z0-9._-]+$', name),
++            "Name must match [A-Za-z0-9._-]+", field="name")
++    valid.expect(not name or name not in [".", ".."],
++            "Name cannot be '.' or '..'", field="name")
++    valid.expect(not name or name not in [".git", ".hg"],
++            "Name must not be '.git' or '.hg'", field="name")
++    valid.expect(not name or Project.query
++            .filter(Project.name.ilike(name))
++            .filter(Project.owner_id == current_user.id).count() == 0,
++            "Name must be unique among your projects", field="name")
++
++
+     if not valid.ok:
+         return render_template("project-rename.html", owner=owner, project=project,
+                 **valid.kwargs)
+-- 
+2.54.0
+
